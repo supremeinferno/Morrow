@@ -1,6 +1,18 @@
+# Environment
 .env
 .venv/
-downloads/
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Generated audio
+downloads/
+
+# Whisper / ML generated files
+*.pt
+*.pth
+*.bin
+
+# OS
 .DS_Store
