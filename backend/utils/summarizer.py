@@ -1,33 +1,25 @@
+import json
+
 from dotenv import load_dotenv
+from pathlib import Path
 
 from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.output_parsers import JsonOutputParser
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-load_dotenv()
 
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+load_dotenv(BASE_DIR / ".env")
 
-# -------------------------
-# LLM
-# -------------------------
 
 llm = ChatMistralAI(
     model="mistral-small-latest",
     temperature=0
 )
 
+parser = JsonOutputParser()
 
-# -------------------------
-# Parser
-# -------------------------
-
-parser = StrOutputParser()
-
-
-# -------------------------
-# Text Splitter
-# -------------------------
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=6000,
@@ -35,17 +27,49 @@ text_splitter = RecursiveCharacterTextSplitter(
 )
 
 
-# -------------------------
-# Partial Summary
-# -------------------------
-
-summary_chunk_prompt = ChatPromptTemplate.from_messages([
+analysis_prompt = ChatPromptTemplate.from_messages([
     (
         "system",
-        "You are an AI meeting assistant. "
-        "Summarize the following portion of a meeting. "
-        "Capture the important discussion, decisions, and context. "
-        "Do not invent information."
+        """You are an AI meeting assistant.
+
+Analyze the following portion of a meeting transcript.
+
+Extract all of the following:
+
+1. SUMMARY
+- Summarize the important discussion and context.
+- Keep it concise.
+- Do not invent information.
+
+2. DECISIONS
+- Include only decisions that were actually made.
+- Do not include suggestions or possibilities.
+
+3. ACTION ITEMS
+- Include tasks that someone needs to perform.
+- Include the responsible person only if explicitly mentioned.
+- Include the deadline only if explicitly mentioned.
+
+4. OPEN QUESTIONS
+- Include important questions that remain unanswered.
+- Do not include questions that were clearly answered.
+
+Rules:
+- Do not invent information.
+- Do not infer names, deadlines, decisions, or answers.
+- If nothing exists for a category, return an empty list.
+
+Return exactly this JSON structure:
+
+{{
+    "summary": "",
+    "decisions": [],
+    "actions": [],
+    "questions": []
+}}
+
+{format_instructions}
+"""
     ),
     (
         "human",
@@ -53,62 +77,121 @@ summary_chunk_prompt = ChatPromptTemplate.from_messages([
     )
 ])
 
-summary_chunk_chain = summary_chunk_prompt | llm | parser
+
+analysis_chain = analysis_prompt | llm | parser
 
 
-# -------------------------
-# Final Summary
-# -------------------------
-
-final_summary_prompt = ChatPromptTemplate.from_messages([
+consolidation_prompt = ChatPromptTemplate.from_messages([
     (
         "system",
-        "You are an AI meeting assistant. "
-        "Combine the provided partial summaries into one clear, "
-        "concise and accurate final meeting summary. "
-        "Remove repetition and preserve important information. "
-        "Do not invent information."
+        """You are an AI meeting assistant.
+
+You are given analysis results from different portions of the same meeting.
+
+Create one final accurate meeting analysis.
+
+SUMMARY:
+- Combine the important information.
+- Remove repetition.
+- Keep the final summary concise and coherent.
+
+DECISIONS:
+- Keep only decisions that were actually made.
+- Merge duplicate decisions.
+- Do not turn suggestions into decisions.
+
+ACTION ITEMS:
+- Merge duplicate action items.
+- Preserve responsible people when explicitly available.
+- Preserve deadlines when explicitly available.
+
+OPEN QUESTIONS:
+- Keep only unresolved questions.
+- Merge duplicate questions.
+- Remove questions that were answered elsewhere.
+
+Rules:
+- Do not invent information.
+- Do not lose important information.
+- Prefer specific information over vague duplicates.
+
+Return exactly this JSON structure:
+
+{{
+    "summary": "",
+    "decisions": [],
+    "actions": [],
+    "questions": []
+}}
+
+{format_instructions}
+"""
     ),
     (
         "human",
-        "Partial meeting summaries:\n\n{summaries}"
+        "Meeting analysis results:\n\n{results}"
     )
 ])
 
-final_summary_chain = final_summary_prompt | llm | parser
 
+consolidation_chain = consolidation_prompt | llm | parser
 
-# -------------------------
-# Analyze Meeting
-# -------------------------
 
 def analyze_meeting(transcript):
 
-    # Split the large transcript into manageable text chunks
     text_chunks = text_splitter.split_text(transcript)
 
-    print(f"\nTranscript split into {len(text_chunks)} text chunks.")
+    print(
+        f"\nTranscript split into "
+        f"{len(text_chunks)} text chunks."
+    )
 
-    # Summarize each chunk
-    partial_summaries = []
+    combined_results = {
+        "summary": [],
+        "decisions": [],
+        "actions": [],
+        "questions": []
+    }
 
     for i, chunk in enumerate(text_chunks, start=1):
 
-        print(f"Processing text chunk {i}/{len(text_chunks)}...")
+        print(
+            f"Processing text chunk "
+            f"{i}/{len(text_chunks)}..."
+        )
 
-        summary = summary_chunk_chain.invoke({
-            "transcript": chunk
+        result = analysis_chain.invoke({
+            "transcript": chunk,
+            "format_instructions": parser.get_format_instructions()
         })
 
-        partial_summaries.append(summary)
+        combined_results["summary"].append(
+            result.get("summary", "")
+        )
 
-    # Combine partial summaries
-    combined_summaries = "\n\n".join(partial_summaries)
+        combined_results["decisions"].extend(
+            result.get("decisions", [])
+        )
 
-    final_summary = final_summary_chain.invoke({
-        "summaries": combined_summaries
+        combined_results["actions"].extend(
+            result.get("actions", [])
+        )
+
+        combined_results["questions"].extend(
+            result.get("questions", [])
+        )
+
+    results_text = json.dumps(
+        combined_results,
+        ensure_ascii=False,
+        indent=2
+    )
+
+    print("\nConsolidating meeting analysis...")
+
+    final_result = consolidation_chain.invoke({
+        "results": results_text,
+        "format_instructions": parser.get_format_instructions()
     })
 
-    return {
-        "summary": final_summary
-    }
+    return final_result
