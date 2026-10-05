@@ -1,12 +1,12 @@
-from audio_processor import (
+from backend.utils.audio_processor import (
     download_audio,
     normalize_audio,
     chunk_audio
 )
 
-from whisper_processor import transcribe_all_chunks
-from summarizer import analyze_meeting
-from extractor import extract_meeting_details
+from backend.utils.whisper_processor import transcribe_all_chunks
+from backend.utils.summarizer import analyze_meeting
+from backend.utils.extractor import extract_meeting_details
 
 
 def main():
