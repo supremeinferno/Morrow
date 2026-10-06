@@ -1,7 +1,6 @@
 import whisper
 from pathlib import Path
 
-
 model = whisper.load_model("small")
 
 

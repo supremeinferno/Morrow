@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 
 from langchain_mistralai import ChatMistralAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
@@ -11,9 +12,12 @@ load_dotenv()
 # LLM
 # -------------------------
 
-llm = ChatMistralAI(
-    model="mistral-small-latest",
-    temperature=0
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3.8-flash",
+    temperature=0.0,  
+    max_tokens=None,
+    timeout=None,
+    max_retries=5,
 )
 
 

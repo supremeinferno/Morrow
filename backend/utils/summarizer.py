@@ -1,25 +1,53 @@
 import json
-
-from dotenv import load_dotenv
+import os
 from pathlib import Path
 
-from langchain_mistralai import ChatMistralAI
+from dotenv import load_dotenv
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
+# --------------------------------------------------
+# ENVIRONMENT
+# --------------------------------------------------
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 load_dotenv(BASE_DIR / ".env")
 
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-llm = ChatMistralAI(
-    model="mistral-small-latest",
-    temperature=0
+if not GEMINI_API_KEY:
+    raise ValueError(
+        "GEMINI_API_KEY not found. "
+        "Make sure it is present in the root .env file."
+    )
+
+
+# --------------------------------------------------
+# LLM
+# --------------------------------------------------
+
+llm = ChatGoogleGenerativeAI(
+    model="gemini-3.8-flash",
+    api_key=GEMINI_API_KEY,
+    max_tokens=None,
+    timeout=None,
+    max_retries=5,
 )
+
+
+# --------------------------------------------------
+# PARSER
+# --------------------------------------------------
 
 parser = JsonOutputParser()
 
+
+# --------------------------------------------------
+# TEXT SPLITTER
+# --------------------------------------------------
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=6000,
@@ -27,39 +55,48 @@ text_splitter = RecursiveCharacterTextSplitter(
 )
 
 
+# --------------------------------------------------
+# ANALYSIS PROMPT
+# --------------------------------------------------
+
 analysis_prompt = ChatPromptTemplate.from_messages([
     (
         "system",
         """You are an AI meeting assistant.
 
-Analyze the following portion of a meeting transcript.
+Analyze the provided meeting transcript portion.
 
-Extract all of the following:
+Extract exactly these four things:
 
 1. SUMMARY
-- Summarize the important discussion and context.
-- Keep it concise.
-- Do not invent information.
+Summarize the important discussion, context, and key points.
+Keep it concise and factual.
 
 2. DECISIONS
-- Include only decisions that were actually made.
-- Do not include suggestions or possibilities.
+Include only decisions that were actually made.
+Do not include suggestions, opinions, possibilities, or discussions
+that did not result in a decision.
 
 3. ACTION ITEMS
-- Include tasks that someone needs to perform.
-- Include the responsible person only if explicitly mentioned.
-- Include the deadline only if explicitly mentioned.
+Include tasks that someone is expected to perform.
+Include the responsible person only when explicitly stated.
+Include the deadline only when explicitly stated.
 
 4. OPEN QUESTIONS
-- Include important questions that remain unanswered.
-- Do not include questions that were clearly answered.
+Include important questions that remain unanswered,
+unresolved, or require follow-up.
+Do not include questions that were clearly answered.
 
-Rules:
+STRICT RULES:
 - Do not invent information.
-- Do not infer names, deadlines, decisions, or answers.
-- If nothing exists for a category, return an empty list.
+- Do not infer names.
+- Do not infer deadlines.
+- Do not convert suggestions into decisions.
+- Do not convert normal conversation into action items.
+- If a category has no valid information, return an empty list.
+- Return valid JSON only.
 
-Return exactly this JSON structure:
+Return exactly:
 
 {{
     "summary": "",
@@ -81,41 +118,51 @@ Return exactly this JSON structure:
 analysis_chain = analysis_prompt | llm | parser
 
 
+# --------------------------------------------------
+# CONSOLIDATION PROMPT
+# --------------------------------------------------
+
 consolidation_prompt = ChatPromptTemplate.from_messages([
     (
         "system",
         """You are an AI meeting assistant.
 
-You are given analysis results from different portions of the same meeting.
+You are given analysis results from different portions of the
+same meeting.
 
-Create one final accurate meeting analysis.
+Create one final meeting analysis.
 
 SUMMARY:
-- Combine the important information.
+- Combine the important points.
 - Remove repetition.
-- Keep the final summary concise and coherent.
+- Keep the summary concise and coherent.
 
 DECISIONS:
-- Keep only decisions that were actually made.
+- Preserve decisions that were actually made.
 - Merge duplicate decisions.
-- Do not turn suggestions into decisions.
+- Never turn suggestions into decisions.
+- Do not remove a valid decision simply because another chunk
+  does not mention it.
 
 ACTION ITEMS:
 - Merge duplicate action items.
-- Preserve responsible people when explicitly available.
-- Preserve deadlines when explicitly available.
+- Preserve explicitly mentioned responsible people.
+- Preserve explicitly mentioned deadlines.
+- Do not invent missing information.
 
 OPEN QUESTIONS:
-- Keep only unresolved questions.
+- Keep unresolved questions.
 - Merge duplicate questions.
-- Remove questions that were answered elsewhere.
+- Remove a question only when the provided results clearly show
+  that it was answered.
 
-Rules:
+STRICT RULES:
 - Do not invent information.
-- Do not lose important information.
-- Prefer specific information over vague duplicates.
+- Do not lose valid information.
+- Preserve all useful details from the analysis results.
+- Return valid JSON only.
 
-Return exactly this JSON structure:
+Return exactly:
 
 {{
     "summary": "",
@@ -137,21 +184,24 @@ Return exactly this JSON structure:
 consolidation_chain = consolidation_prompt | llm | parser
 
 
+# --------------------------------------------------
+# MAIN ANALYSIS FUNCTION
+# --------------------------------------------------
+
 def analyze_meeting(transcript):
 
     text_chunks = text_splitter.split_text(transcript)
 
     print(
         f"\nTranscript split into "
-        f"{len(text_chunks)} text chunks."
+        f"{len(text_chunks)} text chunk(s)."
     )
 
-    combined_results = {
-        "summary": [],
-        "decisions": [],
-        "actions": [],
-        "questions": []
-    }
+    chunk_results = []
+
+    # ----------------------------------------------
+    # ANALYZE EACH TRANSCRIPT CHUNK
+    # ----------------------------------------------
 
     for i, chunk in enumerate(text_chunks, start=1):
 
@@ -165,33 +215,56 @@ def analyze_meeting(transcript):
             "format_instructions": parser.get_format_instructions()
         })
 
-        combined_results["summary"].append(
-            result.get("summary", "")
-        )
+        # Ensure expected fields always exist
+        result = {
+            "summary": result.get("summary", ""),
+            "decisions": result.get("decisions", []),
+            "actions": result.get("actions", []),
+            "questions": result.get("questions", [])
+        }
 
-        combined_results["decisions"].extend(
-            result.get("decisions", [])
-        )
+        chunk_results.append(result)
 
-        combined_results["actions"].extend(
-            result.get("actions", [])
-        )
+    # ----------------------------------------------
+    # IMPORTANT:
+    # If there is only ONE transcript chunk,
+    # return it directly.
+    #
+    # This avoids an unnecessary second LLM call
+    # and prevents the consolidation step from
+    # accidentally removing valid information.
+    # ----------------------------------------------
 
-        combined_results["questions"].extend(
-            result.get("questions", [])
-        )
+    if len(chunk_results) == 1:
+
+        print("\nSingle chunk detected.")
+        print("Skipping consolidation.")
+
+        return chunk_results[0]
+
+    # ----------------------------------------------
+    # MULTI-CHUNK CONSOLIDATION
+    # ----------------------------------------------
+
+    print("\nConsolidating meeting analysis...")
 
     results_text = json.dumps(
-        combined_results,
+        chunk_results,
         ensure_ascii=False,
         indent=2
     )
-
-    print("\nConsolidating meeting analysis...")
 
     final_result = consolidation_chain.invoke({
         "results": results_text,
         "format_instructions": parser.get_format_instructions()
     })
+
+    # Ensure final structure is consistent
+    final_result = {
+        "summary": final_result.get("summary", ""),
+        "decisions": final_result.get("decisions", []),
+        "actions": final_result.get("actions", []),
+        "questions": final_result.get("questions", [])
+    }
 
     return final_result

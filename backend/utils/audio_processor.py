@@ -1,8 +1,6 @@
 import yt_dlp
 from pathlib import Path
 import subprocess
-# import whisper
-# from pydub import AudioSegment
 import yt_dlp
 from pathlib import Path
 
@@ -51,7 +49,7 @@ def normalize_audio(input_file):
 
 
 
-def chunk_audio(input_file, chunk_length=600, overlap=5):
+def chunk_audio(input_file, chunk_length=660, overlap=5):
     input_file = Path(input_file)
 
     chunks_dir = DOWNLOAD_DIR / "chunks"
