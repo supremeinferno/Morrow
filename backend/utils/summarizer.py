@@ -1,62 +1,36 @@
 import json
-import os
-from pathlib import Path
 
-from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-
-# --------------------------------------------------
-# ENVIRONMENT
-# --------------------------------------------------
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-load_dotenv(BASE_DIR / ".env")
-
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-if not GEMINI_API_KEY:
-    raise ValueError(
-        "GEMINI_API_KEY not found. "
-        "Make sure it is present in the root .env file."
-    )
+from backend.utils.config import get_llm
 
 
 # --------------------------------------------------
-# LLM
+# SETUP
 # --------------------------------------------------
 
-llm = ChatGoogleGenerativeAI(
-    model="gemini-3.8-flash",
-    api_key=GEMINI_API_KEY,
-    max_tokens=None,
-    timeout=None,
-    max_retries=5,
-)
-
-
-# --------------------------------------------------
-# PARSER
-# --------------------------------------------------
-
+llm = get_llm()
 parser = JsonOutputParser()
-
-
-# --------------------------------------------------
-# TEXT SPLITTER
-# --------------------------------------------------
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=6000,
-    chunk_overlap=500
+    chunk_overlap=500,
 )
+
+OUTPUT_FORMAT = """Return exactly:
+
+{{
+    "summary": "",
+    "decisions": [],
+    "actions": [],
+    "questions": []
+}}"""
 
 
 # --------------------------------------------------
-# ANALYSIS PROMPT
+# PROMPTS
 # --------------------------------------------------
 
 analysis_prompt = ChatPromptTemplate.from_messages([
@@ -96,31 +70,10 @@ STRICT RULES:
 - If a category has no valid information, return an empty list.
 - Return valid JSON only.
 
-Return exactly:
-
-{{
-    "summary": "",
-    "decisions": [],
-    "actions": [],
-    "questions": []
-}}
-
-{format_instructions}
-"""
+""" + OUTPUT_FORMAT,
     ),
-    (
-        "human",
-        "Meeting transcript portion:\n\n{transcript}"
-    )
+    ("human", "Meeting transcript portion:\n\n{transcript}"),
 ])
-
-
-analysis_chain = analysis_prompt | llm | parser
-
-
-# --------------------------------------------------
-# CONSOLIDATION PROMPT
-# --------------------------------------------------
 
 consolidation_prompt = ChatPromptTemplate.from_messages([
     (
@@ -162,109 +115,54 @@ STRICT RULES:
 - Preserve all useful details from the analysis results.
 - Return valid JSON only.
 
-Return exactly:
-
-{{
-    "summary": "",
-    "decisions": [],
-    "actions": [],
-    "questions": []
-}}
-
-{format_instructions}
-"""
+""" + OUTPUT_FORMAT,
     ),
-    (
-        "human",
-        "Meeting analysis results:\n\n{results}"
-    )
+    ("human", "Meeting analysis results:\n\n{results}"),
 ])
 
-
+analysis_chain = analysis_prompt | llm | parser
 consolidation_chain = consolidation_prompt | llm | parser
 
 
 # --------------------------------------------------
-# MAIN ANALYSIS FUNCTION
+# ANALYSIS
 # --------------------------------------------------
 
+def normalize_result(result):
+    """Make sure every expected field exists, even if the LLM omitted it."""
+
+    return {
+        "summary": result.get("summary", ""),
+        "decisions": result.get("decisions", []),
+        "actions": result.get("actions", []),
+        "questions": result.get("questions", []),
+    }
+
+
 def analyze_meeting(transcript):
+    """Analyze each transcript chunk, then merge the results into one."""
 
     text_chunks = text_splitter.split_text(transcript)
+    total = len(text_chunks)
 
-    print(
-        f"\nTranscript split into "
-        f"{len(text_chunks)} text chunk(s)."
-    )
+    print(f"Transcript split into {total} text chunk(s).")
 
     chunk_results = []
 
-    # ----------------------------------------------
-    # ANALYZE EACH TRANSCRIPT CHUNK
-    # ----------------------------------------------
+    for index, chunk in enumerate(text_chunks, start=1):
+        print(f"Analyzing text chunk {index}/{total}...")
+        result = analysis_chain.invoke({"transcript": chunk})
+        chunk_results.append(normalize_result(result))
 
-    for i, chunk in enumerate(text_chunks, start=1):
-
-        print(
-            f"Processing text chunk "
-            f"{i}/{len(text_chunks)}..."
-        )
-
-        result = analysis_chain.invoke({
-            "transcript": chunk,
-            "format_instructions": parser.get_format_instructions()
-        })
-
-        # Ensure expected fields always exist
-        result = {
-            "summary": result.get("summary", ""),
-            "decisions": result.get("decisions", []),
-            "actions": result.get("actions", []),
-            "questions": result.get("questions", [])
-        }
-
-        chunk_results.append(result)
-
-    # ----------------------------------------------
-    # IMPORTANT:
-    # If there is only ONE transcript chunk,
-    # return it directly.
-    #
-    # This avoids an unnecessary second LLM call
-    # and prevents the consolidation step from
-    # accidentally removing valid information.
-    # ----------------------------------------------
-
-    if len(chunk_results) == 1:
-
-        print("\nSingle chunk detected.")
-        print("Skipping consolidation.")
-
+    # A single chunk needs no merging, and skipping the extra call
+    # stops consolidation from accidentally dropping valid details.
+    if total == 1:
         return chunk_results[0]
 
-    # ----------------------------------------------
-    # MULTI-CHUNK CONSOLIDATION
-    # ----------------------------------------------
-
-    print("\nConsolidating meeting analysis...")
-
-    results_text = json.dumps(
-        chunk_results,
-        ensure_ascii=False,
-        indent=2
-    )
+    print("Consolidating meeting analysis...")
 
     final_result = consolidation_chain.invoke({
-        "results": results_text,
-        "format_instructions": parser.get_format_instructions()
+        "results": json.dumps(chunk_results, ensure_ascii=False, indent=2),
     })
 
-    # Ensure final structure is consistent
-    final_result = {
-        "summary": final_result.get("summary", ""),
-        "decisions": final_result.get("decisions", []),
-        "actions": final_result.get("actions", []),
-        "questions": final_result.get("questions", [])
-    }
-
-    return final_result
+    return normalize_result(final_result)

@@ -1,31 +1,31 @@
-import whisper
-from pathlib import Path
+from functools import cache
 
-model = whisper.load_model("small")
+import whisper
+
+
+WHISPER_MODEL = "small"
+
+
+@cache
+def get_model():
+    """Load the Whisper model once, on first use."""
+
+    return whisper.load_model(WHISPER_MODEL)
 
 
 def transcribe_chunk(chunk_path):
-    result = model.transcribe(
-        str(chunk_path),
-        fp16=False
-    )
+    result = get_model().transcribe(str(chunk_path), fp16=False)
 
     return result["text"].strip()
 
 
-def transcribe_all_chunks(chunks_dir):
-    chunks_dir = Path(chunks_dir)
-
-    chunk_files = sorted(chunks_dir.glob("chunk_*.wav"))
+def transcribe_chunks(chunk_files):
+    """Transcribe audio chunks in order and join them into one transcript."""
 
     transcripts = []
 
-    for chunk_file in chunk_files:
-        print(f"Transcribing: {chunk_file.name}")
-
-        text = transcribe_chunk(chunk_file)
-
-        transcripts.append(text)
+    for index, chunk_file in enumerate(chunk_files, start=1):
+        print(f"Transcribing chunk {index}/{len(chunk_files)}: {chunk_file.name}")
+        transcripts.append(transcribe_chunk(chunk_file))
 
     return "\n\n".join(transcripts)
-
