@@ -1,213 +1,176 @@
-# Morrow
+# Morrow Backend
 
-> **Turn conversations into what comes next.**
+The Python side of Morrow: a **FastAPI** server that turns a meeting link or recording into a transcript, a structured analysis and a RAG chatbot.
 
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![LangChain](https://img.shields.io/badge/LangChain-0.3-green)
-![Whisper](https://img.shields.io/badge/ASR-Whisper-black)
-![Groq](https://img.shields.io/badge/LLM-Groq-orange)
-
-Morrow is an AI meeting assistant that turns long meeting recordings into structured, actionable information.
-
-You don't have to rewatch the whole meeting. Morrow shows what matters: **what was discussed, what was decided, what needs to be done, and what still needs an answer.** You can then ask it questions about the meeting in plain English.
+For the project overview, see the [main README](../README.md).
 
 ---
 
 ## Table of Contents
 
-- [Features](#features)
-- [How It Works](#how-it-works)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Usage](#usage)
+- [Setup](#setup)
+- [Running the API](#running-the-api)
+- [API Reference](#api-reference)
+- [Pipeline](#pipeline)
+- [Module Overview](#module-overview)
 - [Configuration](#configuration)
-- [Roadmap](#roadmap)
+- [Command-Line Usage](#command-line-usage)
+- [Storage](#storage)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## Features
+## Setup
 
-| Feature | Description |
-| --- | --- |
-| **Transcription** | Converts meeting audio to text with OpenAI Whisper, running locally on your machine. |
-| **Meeting Summary** | A concise summary of the key discussion points and context. |
-| **Decisions** | Lists only decisions that were actually made. Suggestions and undecided ideas are left out. |
-| **Action Items** | Extracts tasks, with the responsible person and deadline when they are explicitly stated. |
-| **Open Questions** | Lists unresolved questions that need follow-up. |
-| **Ask Your Meeting** | A retrieval-augmented (RAG) Q&A that answers only from the transcript. When the answer isn't in the meeting, it says so instead of guessing. |
+**Requirements:** Python 3.10+, FFmpeg on your `PATH`, and a [Groq API key](https://console.groq.com/keys).
 
-Morrow is designed to **stay grounded**. It never invents names, deadlines or decisions that weren't in the conversation.
-
----
-
-## How It Works
-
-```text
-YouTube URL / Meeting Recording
-              │
-              ▼
-     Audio Extraction (yt-dlp)
-              │
-              ▼
-  Normalization (16 kHz mono, loudnorm)
-              │
-              ▼
-   Chunking (11-min overlapping segments)
-              │
-              ▼
-     Local Transcription (Whisper)
-              │
-              ▼
-        Meeting Transcript
-         │              │
-         ▼              ▼
-   LLM Analysis     Vector Store
-     (Groq)      (Chroma + MiniLM)
-         │              │
-         ▼              ▼
-  Summary · Decisions   RAG Q&A
-  Actions · Questions
-```
-
-**Long meetings** are split into text chunks. Each chunk is analyzed on its own, and the results are then merged into one final report with duplicates removed. Short meetings skip the merge step, so no details are lost.
-
-**Q&A**: the transcript is embedded into a Chroma collection that belongs to that meeting. For each question, Morrow retrieves the most relevant passages, and the LLM answers using only those passages.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-| --- | --- |
-| Audio download | [yt-dlp](https://github.com/yt-dlp/yt-dlp) |
-| Audio processing | [FFmpeg](https://ffmpeg.org/) |
-| Speech-to-text | [OpenAI Whisper](https://github.com/openai/whisper) (`small`, local) |
-| LLM | [Groq](https://groq.com/) via `langchain-groq` |
-| Orchestration | [LangChain](https://www.langchain.com/) |
-| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` |
-| Vector database | [Chroma](https://www.trychroma.com/) |
-
----
-
-## Project Structure
-
-```text
-Morrow/
-├── backend/
-│   └── utils/
-│       ├── config.py             # Paths, environment, shared Groq LLM
-│       ├── audio_processor.py    # Download, normalize and chunk audio
-│       ├── whisper_processor.py  # Local Whisper transcription
-│       ├── summarizer.py         # Summary, decisions, actions, questions
-│       ├── vector_store.py       # Transcript embeddings in Chroma
-│       ├── rag_engine.py         # Question answering over a meeting
-│       ├── main.py               # End-to-end pipeline (CLI)
-│       └── test_rag.py           # Interactive RAG demo
-├── chroma_db/                    # Persisted vector store
-├── downloads/                    # Downloaded audio and chunks (git-ignored)
-├── requirements.txt
-└── .env                          # API keys (git-ignored)
-```
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- **Python 3.10+**
-- **FFmpeg**, installed and on your `PATH`
-  ```bash
-  # macOS
-  brew install ffmpeg
-
-  # Ubuntu / Debian
-  sudo apt install ffmpeg
-  ```
-- A **Groq API key**, free from [console.groq.com](https://console.groq.com/keys)
-
-### Installation
+All commands run from the **project root**, not from inside `backend/`.
 
 ```bash
-# Clone the repository
-git clone https://github.com/supremeinferno/Morrow.git
-cd Morrow
-
-# Create and activate a virtual environment
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-
-# Install dependencies
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### Environment Variables
-
-Create a `.env` file in the project root:
+Create `.env` in the project root:
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
 ```
 
-> The first run downloads the Whisper and embedding models, which takes a few minutes. Later runs use the cached copies.
+---
+
+## Running the API
+
+```bash
+python -m uvicorn backend.api:app --reload
+```
+
+| URL | Purpose |
+| --- | --- |
+| `http://localhost:8000/api/...` | REST endpoints |
+| `http://localhost:8000/docs` | Interactive Swagger UI |
+
+The frontend dev server proxies `/api` to port `8000`, so no CORS setup is needed during development.
 
 ---
 
-## Usage
+## API Reference
 
-Run all commands from the project root.
+### `POST /api/meetings`
 
-### Analyze a meeting
+Starts processing a meeting. Send **either** a link **or** a file as `multipart/form-data`.
 
-```bash
-python -m backend.utils.main
-```
-
-Paste a YouTube URL when prompted. Morrow downloads the audio, transcribes it and prints a report:
-
-```text
-############################################################
-MORROW — MEETING ANALYSIS
-############################################################
-
-============================================================
-MEETING SUMMARY
-============================================================
-The team discussed the upcoming product release, the backend
-timeline and the production database.
-
-============================================================
-DECISIONS
-============================================================
-- Use PostgreSQL for the production database.
-
-============================================================
-ACTION ITEMS
-============================================================
-- Pranav will complete the authentication API by Friday.
-
-============================================================
-OPEN QUESTIONS
-============================================================
-- Should the first release include email notifications?
-```
-
-### Ask questions about a meeting
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | string | A video link (YouTube or any site [yt-dlp](https://github.com/yt-dlp/yt-dlp) supports) |
+| `file` | file | An audio or video file: `.mp4 .mov .mkv .webm .avi .m4v .mp3 .wav .m4a .aac .ogg .flac .opus .weba` |
 
 ```bash
-python -m backend.utils.test_rag
+# From a link
+curl -F "url=https://www.youtube.com/watch?v=VIDEO_ID" http://localhost:8000/api/meetings
+
+# From a file
+curl -F "file=@standup.mp4" http://localhost:8000/api/meetings
 ```
+
+**`202 Accepted`** returns the meeting object (see below), with `status` set to `queued` or the first pipeline step.
+**`400 Bad Request`** means no input, both inputs, an invalid link, or an unsupported file type.
+
+### `GET /api/meetings/{id}`
+
+Returns the current state of a meeting. Poll this until `status` is `ready` or `failed`. The web app polls every 2 seconds.
+
+```json
+{
+  "id": "4798be430f1142e99c5ce96f5d1faf31",
+  "title": "release-sync",
+  "source": "upload",
+  "status": "ready",
+  "detail": "Analysis complete.",
+  "transcript": "Okay everyone, let's start the release sync...",
+  "result": {
+    "summary": "The team confirmed the beta launch for March 3rd...",
+    "decisions": ["Launch the beta on March 3rd."],
+    "actions": [
+      { "task": "Write the onboarding documentation", "owner": "Priya", "deadline": "next Monday" },
+      { "task": "Fix the login issue", "owner": "Sam" }
+    ],
+    "questions": ["Whether to charge for the premium plan."]
+  },
+  "error": null
+}
+```
+
+Items in `decisions`, `actions` and `questions` come from the LLM. They may be plain strings or objects such as `{ task, owner, deadline }`, so clients should handle both.
+
+| `status` | Meaning |
+| --- | --- |
+| `queued` | Waiting for an earlier meeting to finish |
+| `downloading` | Fetching audio from the link (links only) |
+| `preparing` | Normalizing and chunking the audio |
+| `transcribing` | Running Whisper. `detail` shows chunk progress |
+| `analyzing` | Extracting summary, decisions, actions and questions |
+| `indexing` | Embedding the transcript for the chatbot |
+| `ready` | Done: `transcript` and `result` are filled in |
+| `failed` | Something went wrong. See `error` |
+
+**`404 Not Found`** means the ID is unknown or the server was restarted.
+
+### `POST /api/meetings/{id}/questions`
+
+Asks the RAG chatbot a question about a `ready` meeting.
+
+```bash
+curl -X POST http://localhost:8000/api/meetings/<id>/questions \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Who is fixing the login bug?"}'
+```
+
+```json
+{ "answer": "Sam is fixing the login bug." }
+```
+
+If the transcript doesn't contain the answer, the reply is `"I couldn't find that information in the meeting."`
+
+**`409 Conflict`** means the meeting is still processing. **`400`** means the question is empty.
+
+---
+
+## Pipeline
 
 ```text
-Question: When can the frontend work start?
-After the authentication API is completed, which is expected by Friday.
-
-Question: How much budget was allocated?
-I couldn't find that information in the meeting.
+link ──► download_audio ─┐
+                          ├─► normalize_audio ─► chunk_audio ─► transcribe_chunks
+file ─────────────────────┘                                            │
+                                                     ┌─────────────────┴─────────────────┐
+                                                     ▼                                   ▼
+                                              analyze_meeting                   create_vector_store
+                                       (per-chunk analysis + merge)          (MiniLM embeddings → Chroma)
+                                                                                         │
+                                                                                   ask_meeting
 ```
 
-Enter a blank line to quit.
+- **Long transcripts** are split into ~6,000-character chunks. Each chunk is analyzed separately, then a consolidation step merges them and removes duplicates. Single-chunk meetings skip the merge, so no details are lost.
+- **Each meeting** gets its own temporary audio-chunk folder and its own Chroma collection, so jobs never mix.
+- **Processing** happens in a single background worker, because Whisper is resource-heavy.
+
+---
+
+## Module Overview
+
+```text
+backend/
+├── api.py                   # FastAPI app: routes, job state, background pipeline
+└── utils/
+    ├── config.py            # Paths, .env loading, shared Groq LLM factory
+    ├── audio_processor.py   # yt-dlp download, FFmpeg normalize + chunk
+    ├── whisper_processor.py # Lazy-loaded Whisper model, chunk transcription
+    ├── summarizer.py        # Analysis + consolidation prompts (JSON output)
+    ├── vector_store.py      # Transcript splitting, embeddings, Chroma
+    ├── rag_engine.py        # Retrieval + grounded answer generation
+    └── main.py              # Command-line version of the pipeline
+```
 
 ---
 
@@ -215,23 +178,50 @@ Enter a blank line to quit.
 
 | Setting | Location | Default |
 | --- | --- | --- |
-| LLM model | `GROQ_MODEL` in `config.py` | `openai/gpt-oss-120b` |
-| Whisper model size | `WHISPER_MODEL` in `whisper_processor.py` | `small` |
-| Audio chunk length / overlap | `chunk_audio()` in `audio_processor.py` | 660 s / 5 s |
-| Analysis chunk size | `text_splitter` in `summarizer.py` | 6000 chars / 500 overlap |
-| RAG chunk size | `rag_splitter` in `vector_store.py` | 1000 chars / 150 overlap |
-| Retrieved passages per question | `k` in `ask_meeting()` | 4 |
+| LLM model | `GROQ_MODEL` in `utils/config.py` | `openai/gpt-oss-120b` |
+| Whisper model size | `WHISPER_MODEL` in `utils/whisper_processor.py` | `small` |
+| Audio chunk length / overlap | `chunk_audio()` in `utils/audio_processor.py` | 660 s / 5 s |
+| Analysis chunk size | `text_splitter` in `utils/summarizer.py` | 6000 chars / 500 overlap |
+| RAG chunk size | `rag_splitter` in `utils/vector_store.py` | 1000 chars / 150 overlap |
+| Passages retrieved per question | `k` in `ask_meeting()` | 4 |
+| Accepted upload types | `MEDIA_SUFFIXES` in `api.py` | common audio/video formats |
 
-**Tip:** for better accuracy on noisy audio, use a larger Whisper model (`medium`, `large`). It runs slower.
+**Tip:** for noisy audio, `medium` or `large` Whisper models are more accurate but slower. `base` is faster on modest hardware.
 
 ---
 
-## Roadmap
+## Command-Line Usage
 
-- [x] Local transcription with Whisper
-- [x] Summary, decisions, action items and open questions
-- [x] RAG-based Q&A over meeting transcripts
-- [ ] Upload local audio and video files
-- [ ] Web interface (Streamlit)
-- [ ] Export reports as PDF
-- [ ] Speaker identification
+The pipeline also runs without the web app:
+
+```bash
+python -m backend.utils.main
+```
+
+Paste a YouTube URL when prompted. The report prints to the terminal.
+
+---
+
+## Storage
+
+| Path | Contents |
+| --- | --- |
+| `downloads/` | Downloaded audio and normalized WAV files |
+| `downloads/uploads/` | Uploaded recordings, saved as `<meeting-id>.<ext>` |
+| `downloads/chunks/<meeting-id>/` | Temporary audio chunks, deleted after each job |
+| `chroma_db/` | Persisted Chroma collections, one per meeting |
+
+All paths are relative to the **project root**, as set in `utils/config.py`. Meeting state (status, transcript, results) lives **in memory** inside the API process and is cleared on restart.
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| `GROQ_API_KEY not found` | Add the key to `.env` in the project root, not in `backend/`. |
+| `ffmpeg: command not found` | Install FFmpeg and make sure it's on your `PATH`. |
+| `ModuleNotFoundError: backend` | Run commands from the project root, using `python -m ...`. |
+| `.venv/bin/uvicorn: bad interpreter` | The virtualenv was copied from another location. Use `python -m uvicorn ...` or recreate `.venv`. |
+| A link fails with `DownloadError` | The link isn't a supported video, or the video is private or region-locked. Try uploading the file instead. |
+| Transcription is slow | Use a smaller Whisper model (`base`), or run on a machine with a GPU. |
