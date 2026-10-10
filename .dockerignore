@@ -1,0 +1,17 @@
+# Keep the image small and secrets out of it.
+.git
+.env
+.venv
+.DS_Store
+**/__pycache__
+*.py[cod]
+
+frontend
+downloads
+chroma_db
+backend/downloads
+backend/chroma_db
+
+*.pt
+*.pth
+*.md

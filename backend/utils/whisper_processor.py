@@ -1,9 +1,11 @@
+import os
 from functools import cache
 
 import whisper
 
 
-WHISPER_MODEL = "small"
+# "base" needs ~1 GB of RAM, "small" ~2 GB. Override with the WHISPER_MODEL env var.
+WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
 
 
 @cache
