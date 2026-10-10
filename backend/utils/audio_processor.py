@@ -13,28 +13,53 @@ CHUNKS_DIR = DOWNLOAD_DIR / "chunks"
 
 def network_options():
     """
-    Optional yt-dlp settings for servers that YouTube treats as bots:
+    yt-dlp settings for YouTube, which bot-checks anonymous downloads:
 
-    YTDLP_COOKIES_FILE  path to a Netscape-format cookies.txt exported from a browser
-    YTDLP_PROXY         proxy URL, e.g. http://user:pass@host:port
+    YTDLP_COOKIES_FILE          path to a Netscape-format cookies.txt exported from a browser
+    YTDLP_COOKIES_FROM_BROWSER  read cookies from a local browser instead (e.g. brave, chrome)
+    YTDLP_PROXY                 proxy URL, e.g. http://user:pass@host:port
     """
 
-    options = {}
+    # YouTube needs a JavaScript runtime to solve its player challenges.
+    options = {"js_runtimes": {"deno": {}, "node": {}}}
+
     cookies_file = os.getenv("YTDLP_COOKIES_FILE")
+    cookies_browser = os.getenv("YTDLP_COOKIES_FROM_BROWSER")
     proxy = os.getenv("YTDLP_PROXY")
 
-    if cookies_file and Path(cookies_file).is_file():
-        # yt-dlp writes cookies back on exit, and secret files are often
-        # read-only, so work from a writable copy.
-        DOWNLOAD_DIR.mkdir(exist_ok=True)
-        writable_copy = DOWNLOAD_DIR / "yt-cookies.txt"
-        shutil.copyfile(cookies_file, writable_copy)
-        options["cookiefile"] = str(writable_copy)
+    if cookies_file:
+        if Path(cookies_file).is_file():
+            # yt-dlp writes cookies back on exit, and secret files are often
+            # read-only, so work from a writable copy.
+            DOWNLOAD_DIR.mkdir(exist_ok=True)
+            writable_copy = DOWNLOAD_DIR / "yt-cookies.txt"
+            shutil.copyfile(cookies_file, writable_copy)
+            options["cookiefile"] = str(writable_copy)
+        else:
+            print(f"Warning: YTDLP_COOKIES_FILE not found at {cookies_file}")
+
+    elif cookies_browser:
+        options["cookiesfrombrowser"] = (cookies_browser,)
 
     if proxy:
         options["proxy"] = proxy
 
     return options
+
+
+def youtube_setup():
+    """Report which YouTube workarounds are configured (no secrets)."""
+
+    cookies_file = os.getenv("YTDLP_COOKIES_FILE")
+
+    return {
+        "cookies": bool(
+            (cookies_file and Path(cookies_file).is_file())
+            or os.getenv("YTDLP_COOKIES_FROM_BROWSER")
+        ),
+        "proxy": bool(os.getenv("YTDLP_PROXY")),
+        "js_runtime": next((name for name in ("deno", "node") if shutil.which(name)), None),
+    }
 
 
 def download_audio(url):

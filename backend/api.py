@@ -24,6 +24,7 @@ from backend.utils.audio_processor import (
     chunk_audio,
     download_audio,
     normalize_audio,
+    youtube_setup,
 )
 from backend.utils.config import DOWNLOAD_DIR
 from backend.utils.rag_engine import ask_meeting
@@ -186,9 +187,9 @@ class QuestionRequest(BaseModel):
 
 @app.get("/api/health")
 def health():
-    """Lightweight check for uptime monitors and Render health checks."""
+    """Uptime check that also shows whether YouTube downloads are set up."""
 
-    return {"status": "ok"}
+    return {"status": "ok", "youtube": youtube_setup()}
 
 
 @app.post("/api/meetings", status_code=202)

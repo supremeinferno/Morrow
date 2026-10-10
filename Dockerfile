@@ -10,6 +10,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
+# Deno: the JavaScript runtime yt-dlp uses to solve YouTube's player challenges.
+COPY --from=denoland/deno:bin-2.1.4 /deno /usr/local/bin/deno
+
 WORKDIR /app
 
 # Install CPU-only PyTorch first, so requirements.txt doesn't pull the multi-GB CUDA build.

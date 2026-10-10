@@ -3,7 +3,7 @@ uvicorn[standard]>=0.30.0
 python-multipart>=0.0.9
 python-dotenv>=1.0.1
 
-yt-dlp>=2025.1.15
+yt-dlp[default]>=2025.11.12
 
 openai-whisper>=20240930
 torch>=2.5.0
