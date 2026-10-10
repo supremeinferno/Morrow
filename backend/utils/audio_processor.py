@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -8,6 +9,32 @@ from backend.utils.config import DOWNLOAD_DIR
 
 
 CHUNKS_DIR = DOWNLOAD_DIR / "chunks"
+
+
+def network_options():
+    """
+    Optional yt-dlp settings for servers that YouTube treats as bots:
+
+    YTDLP_COOKIES_FILE  path to a Netscape-format cookies.txt exported from a browser
+    YTDLP_PROXY         proxy URL, e.g. http://user:pass@host:port
+    """
+
+    options = {}
+    cookies_file = os.getenv("YTDLP_COOKIES_FILE")
+    proxy = os.getenv("YTDLP_PROXY")
+
+    if cookies_file and Path(cookies_file).is_file():
+        # yt-dlp writes cookies back on exit, and secret files are often
+        # read-only, so work from a writable copy.
+        DOWNLOAD_DIR.mkdir(exist_ok=True)
+        writable_copy = DOWNLOAD_DIR / "yt-cookies.txt"
+        shutil.copyfile(cookies_file, writable_copy)
+        options["cookiefile"] = str(writable_copy)
+
+    if proxy:
+        options["proxy"] = proxy
+
+    return options
 
 
 def download_audio(url):
@@ -25,6 +52,7 @@ def download_audio(url):
                 "preferredquality": "192",
             }
         ],
+        **network_options(),
     }
 
     with yt_dlp.YoutubeDL(options) as ydl:

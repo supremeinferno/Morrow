@@ -93,6 +93,22 @@ def get_meeting(meeting_id):
 # PIPELINE
 # --------------------------------------------------
 
+BOT_CHECK_ERROR = (
+    "YouTube blocked this download because it came from a cloud server. "
+    "Download the video yourself and use \"Upload a file\" instead."
+)
+
+
+def describe_error(error):
+    """Turn known pipeline failures into messages a user can act on."""
+
+    message = str(error)
+
+    if "confirm you" in message and "not a bot" in message:
+        return BOT_CHECK_ERROR
+
+    return f"{type(error).__name__}: {message}"
+
 def process_meeting(meeting, url=None, upload_path=None):
     """Run the full pipeline for one meeting, recording progress as it goes."""
 
@@ -132,7 +148,7 @@ def process_meeting(meeting, url=None, upload_path=None):
 
     except Exception as error:
         traceback.print_exc()
-        meeting.error = f"{type(error).__name__}: {error}"
+        meeting.error = describe_error(error)
         meeting.update("failed", "Something went wrong while processing this meeting.")
 
     finally:
