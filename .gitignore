@@ -9,6 +9,9 @@ __pycache__/
 # Generated audio
 downloads/
 
+# Vector store (rebuilt at runtime)
+chroma_db/
+
 # Whisper / ML generated files
 *.pt
 *.pth

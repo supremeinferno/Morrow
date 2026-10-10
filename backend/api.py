@@ -5,15 +5,18 @@ Run from the project root:
     uvicorn backend.api:app --reload
 """
 
+import os
 import shutil
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.utils.audio_processor import (
@@ -39,7 +42,18 @@ MEDIA_SUFFIXES = {
 # Whisper is CPU/GPU heavy, so meetings are processed one at a time.
 executor = ThreadPoolExecutor(max_workers=1)
 
+# Browser origins allowed to call the API directly (comma-separated).
+# Needed when the frontend sets VITE_API_URL instead of using a same-origin proxy.
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,https://trymorrow.vercel.app")
+
 app = FastAPI(title="Morrow API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in CORS_ORIGINS.split(",") if origin.strip()],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 
 # --------------------------------------------------
@@ -78,6 +92,13 @@ class Meeting:
 
 # Kept in memory: meetings are lost when the server restarts.
 meetings: dict[str, Meeting] = {}
+
+
+def link_title(url):
+    """A readable placeholder title until the real video title is known."""
+
+    host = urlparse(url).netloc.removeprefix("www.")
+    return f"Video from {host}" if host else "Video link"
 
 
 def get_meeting(meeting_id):
@@ -163,6 +184,13 @@ class QuestionRequest(BaseModel):
     question: str
 
 
+@app.get("/api/health")
+def health():
+    """Lightweight check for uptime monitors and Render health checks."""
+
+    return {"status": "ok"}
+
+
 @app.post("/api/meetings", status_code=202)
 def create_meeting(url: str | None = Form(None), file: UploadFile | None = File(None)):
     """Start processing a meeting from a video link or an uploaded file."""
@@ -181,7 +209,7 @@ def create_meeting(url: str | None = Form(None), file: UploadFile | None = File(
         if not url.startswith(("http://", "https://")):
             raise HTTPException(status_code=400, detail="Please enter a valid http(s) link.")
 
-        meeting = Meeting(id=meeting_id, title=url, source="link")
+        meeting = Meeting(id=meeting_id, title=link_title(url), source="link")
         meetings[meeting_id] = meeting
         executor.submit(process_meeting, meeting, url=url)
 

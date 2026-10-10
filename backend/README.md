@@ -14,6 +14,7 @@ For the project overview, see the [main README](../README.md).
 - [Pipeline](#pipeline)
 - [Module Overview](#module-overview)
 - [Configuration](#configuration)
+- [Deployment (Docker / Render)](#deployment-docker--render)
 - [Command-Line Usage](#command-line-usage)
 - [Storage](#storage)
 - [Troubleshooting](#troubleshooting)
@@ -52,6 +53,10 @@ python -m uvicorn backend.api:app --reload
 | `http://localhost:8000/docs` | Interactive Swagger UI |
 
 The frontend dev server proxies `/api` to port `8000`, so no CORS setup is needed during development.
+
+### `GET /api/health`
+
+Returns `{"status": "ok"}`. Use it for uptime monitors or Render's health check path.
 
 ---
 
@@ -176,10 +181,23 @@ backend/
 
 ## Configuration
 
+### Environment variables
+
+Set these in `.env` locally or in your host's dashboard (e.g. Render → Environment).
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `GROQ_API_KEY` | **Yes** | Groq API key for analysis and chat |
+| `WHISPER_MODEL` | No | Whisper size: `tiny`, `base`, `small` (default), `medium`, `large`. `base` needs ~1 GB RAM, `small` ~2 GB |
+| `CORS_ORIGINS` | No | Comma-separated browser origins allowed to call the API directly. Default: `http://localhost:5173,https://trymorrow.vercel.app` |
+| `YTDLP_COOKIES_FILE` | No | Path to a browser-exported `cookies.txt`, used when YouTube blocks the server as a bot |
+| `YTDLP_PROXY` | No | Proxy URL for downloads, e.g. `http://user:pass@host:port` |
+
+### Code-level settings
+
 | Setting | Location | Default |
 | --- | --- | --- |
 | LLM model | `GROQ_MODEL` in `utils/config.py` | `openai/gpt-oss-120b` |
-| Whisper model size | `WHISPER_MODEL` in `utils/whisper_processor.py` | `small` |
 | Audio chunk length / overlap | `chunk_audio()` in `utils/audio_processor.py` | 660 s / 5 s |
 | Analysis chunk size | `text_splitter` in `utils/summarizer.py` | 6000 chars / 500 overlap |
 | RAG chunk size | `rag_splitter` in `utils/vector_store.py` | 1000 chars / 150 overlap |
@@ -187,6 +205,33 @@ backend/
 | Accepted upload types | `MEDIA_SUFFIXES` in `api.py` | common audio/video formats |
 
 **Tip:** for noisy audio, `medium` or `large` Whisper models are more accurate but slower. `base` is faster on modest hardware.
+
+---
+
+## Deployment (Docker / Render)
+
+The repo root contains a `Dockerfile` that installs FFmpeg, CPU-only PyTorch and the Python dependencies. It also downloads the Whisper and embedding models at build time.
+
+**Run locally with Docker:**
+
+```bash
+docker build -t morrow-api .
+docker run -p 8000:8000 --env-file .env morrow-api
+```
+
+To bake a different Whisper model into the image, pass it at build time: `docker build --build-arg WHISPER_MODEL=base -t morrow-api .`
+
+**Deploy on Render:**
+
+1. Create a **Web Service** from the repo with **Language: Docker**. The `Dockerfile` handles the build and start commands.
+2. Add environment variables. `GROQ_API_KEY` is required. Use `WHISPER_MODEL=base` on instances with less than 2 GB of RAM.
+3. Optionally set the **Health Check Path** to `/api/health`.
+4. If the frontend calls the API directly (via `VITE_API_URL`), make sure its origin is listed in `CORS_ORIGINS`.
+
+**YouTube on cloud servers.** YouTube often blocks downloads from data-center IPs ("Sign in to confirm you're not a bot"). Users then see a message telling them to upload the file instead. To make links work:
+
+- **Cookies:** sign in to YouTube with a throwaway account in a private window, export `cookies.txt` (e.g. with the "Get cookies.txt LOCALLY" extension), and add it as a Render **Secret File**. Then set `YTDLP_COOKIES_FILE=/etc/secrets/cookies.txt`. Cookies expire, so refresh them if links start failing again.
+- **Proxy:** set `YTDLP_PROXY` to a residential proxy. Data-center proxies are blocked too.
 
 ---
 
@@ -224,4 +269,7 @@ All paths are relative to the **project root**, as set in `utils/config.py`. Mee
 | `ModuleNotFoundError: backend` | Run commands from the project root, using `python -m ...`. |
 | `.venv/bin/uvicorn: bad interpreter` | The virtualenv was copied from another location. Use `python -m uvicorn ...` or recreate `.venv`. |
 | A link fails with `DownloadError` | The link isn't a supported video, or the video is private or region-locked. Try uploading the file instead. |
+| "YouTube blocked this download" | The server's IP is being bot-checked. See [YouTube on cloud servers](#deployment-docker--render). |
+| Browser shows a CORS error | Add the frontend's origin to `CORS_ORIGINS`. |
+| Container crashes while transcribing | Not enough memory. Set `WHISPER_MODEL=base` or use a larger instance. |
 | Transcription is slow | Use a smaller Whisper model (`base`), or run on a machine with a GPU. |

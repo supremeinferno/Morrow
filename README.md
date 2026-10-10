@@ -21,6 +21,7 @@ Morrow is an AI meeting assistant. Paste a meeting link or upload a recording, a
 - [Repository Structure](#repository-structure)
 - [Quick Start](#quick-start)
 - [Using Morrow](#using-morrow)
+- [Deployment](#deployment)
 - [Limitations](#limitations)
 - [Roadmap](#roadmap)
 
@@ -171,11 +172,23 @@ Prefer the terminal? The pipeline also runs as a CLI. See [backend/README.md](ba
 
 ---
 
+## Deployment
+
+| Part | Platform | How |
+| --- | --- | --- |
+| Backend | Render (Docker) | Uses the root `Dockerfile`. Set `GROQ_API_KEY`, plus `WHISPER_MODEL=base` on small instances |
+| Frontend | Vercel | Root Directory `frontend`. `/api` goes to the backend via `vercel.json`, or directly via `VITE_API_URL` |
+
+Full steps: [backend deployment](backend/README.md#deployment-docker--render) · [frontend production build](frontend/README.md#production-build).
+
+---
+
 ## Limitations
 
 - **Meetings are stored in memory.** Restarting the API clears processed meetings, though the vector data stays in `chroma_db/`.
 - **One meeting at a time.** Transcription is CPU/GPU heavy, so meetings are queued and processed one after another.
 - **No authentication.** Morrow is built for local use. Add auth and rate limiting before exposing it publicly.
+- **YouTube on cloud hosts.** YouTube often bot-blocks downloads from servers like Render. Uploading the file always works, and links can be re-enabled with cookies or a proxy ([details](backend/README.md#deployment-docker--render)).
 - **Processing time.** It scales with recording length and your hardware. A one-hour meeting can take several minutes to transcribe on a CPU.
 
 ---

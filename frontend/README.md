@@ -47,7 +47,20 @@ Open **http://localhost:5173**.
 
 ## How It Talks to the Backend
 
-In development, Vite forwards every `/api` request to `http://localhost:8000` (see [`vite.config.js`](vite.config.js)), so the app uses relative URLs and needs no CORS setup.
+By default the app calls same-origin `/api/...`, and something in front of it forwards those requests to the backend:
+
+| Environment | Forwarded by | Configured in |
+| --- | --- | --- |
+| Local dev | Vite dev proxy → `http://localhost:8000` | [`vite.config.js`](vite.config.js) |
+| Vercel | Rewrite → the Render backend | [`vercel.json`](vercel.json) |
+
+Alternatively, set **`VITE_API_URL`** (in Vercel's environment variables, or `frontend/.env.local` locally) to make the browser call the backend directly:
+
+```env
+VITE_API_URL=https://your-service.onrender.com/api
+```
+
+Do this in production if users upload large recordings, because Vercel rewrites reject request bodies over ~4.5 MB. The backend's `CORS_ORIGINS` must include your frontend's origin. `VITE_*` variables are baked in at build time, so redeploy after changing it.
 
 All network calls live in [`src/api.js`](src/api.js):
 
@@ -74,6 +87,7 @@ Because the ID is in the URL, a refresh or a shared link reopens the same meetin
 frontend/
 ├── index.html                 # Fonts, meta tags, root element
 ├── vite.config.js             # React plugin + /api dev proxy
+├── vercel.json                # Production /api rewrite to the backend
 ├── public/
 │   └── favicon.svg
 └── src/
@@ -168,9 +182,10 @@ Plain CSS, no framework.
 npm run build
 ```
 
-The output in `dist/` is static and can be served by any static host. The app calls the API at the **same origin** (`/api/...`), so in production you need one of these:
+The output in `dist/` is static and can be served by any static host. The app needs to reach the API in one of these ways:
 
-- **Same server:** put a reverse proxy (nginx, Caddy) in front that routes `/api` to the FastAPI server and everything else to `dist/`.
-- **Separate API domain:** change the base URL in `src/api.js` and enable CORS in the FastAPI app.
+- **Vercel (current setup):** set the project's **Root Directory** to `frontend`. [`vercel.json`](vercel.json) rewrites `/api/*` to the Render backend; update its `destination` if the backend URL changes.
+- **Direct calls:** set `VITE_API_URL` in the host's environment variables and add the site's origin to the backend's `CORS_ORIGINS`. This is recommended for large uploads.
+- **Own server:** put a reverse proxy (nginx, Caddy) in front that routes `/api` to FastAPI and everything else to `dist/`.
 
 The build warns that the Three.js chunk is over 500 kB. That's expected, and it's loaded lazily after the page renders.

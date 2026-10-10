@@ -1,3 +1,7 @@
+// Calls go to VITE_API_URL when set (e.g. https://morrow.onrender.com/api), otherwise to
+// same-origin /api, which the Vite dev proxy or the vercel.json rewrite forwards.
+const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/+$/, '')
+
 const SERVER_ERROR = "Couldn't reach the Morrow server. Make sure the API is running."
 
 function errorMessage(status, data) {
@@ -10,7 +14,7 @@ async function request(path, options) {
   let response
 
   try {
-    response = await fetch(`/api${path}`, options)
+    response = await fetch(`${API_BASE}${path}`, options)
   } catch {
     throw new Error(SERVER_ERROR)
   }
@@ -38,7 +42,7 @@ export function uploadMeeting(file, onProgress) {
     const form = new FormData()
     form.append('file', file)
 
-    xhr.open('POST', '/api/meetings')
+    xhr.open('POST', `${API_BASE}/meetings`)
     xhr.responseType = 'json'
 
     xhr.upload.onprogress = (event) => {
