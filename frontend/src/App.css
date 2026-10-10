@@ -963,3 +963,10 @@
     opacity: 0;
   }
 }
+
+@media (max-width: 640px) {
+  .terminal pre {
+    padding: 16px;
+    font-size: 12px;
+  }
+}
