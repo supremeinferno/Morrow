@@ -474,7 +474,7 @@
 
 .report-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding-bottom: 20px;
@@ -482,15 +482,13 @@
   border-bottom: 1px solid var(--border);
 }
 
-.report-label,
 .chat-subtitle {
   color: var(--text-faint);
   font-size: 13px;
 }
 
 .report-header h3 {
-  margin-top: 2px;
-  font-size: 21px;
+  font-size: 19px;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -1210,7 +1208,7 @@
   font-size: 14px;
 }
 
-.icon-badge-error {
+.icon-badge.icon-badge-error {
   width: 52px;
   height: 52px;
   margin-bottom: 18px;

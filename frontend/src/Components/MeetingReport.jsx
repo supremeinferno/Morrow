@@ -65,10 +65,7 @@ export default function MeetingReport({ title, result, transcript }) {
   return (
     <div className="card report">
       <div className="report-header">
-        <div>
-          <p className="report-label">Meeting report</p>
-          <h3>{title}</h3>
-        </div>
+        <h3>Meeting report</h3>
         <button className="copy-button" type="button" onClick={copyReport}>
           {copied ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
           {copied ? 'Copied' : 'Copy'}
