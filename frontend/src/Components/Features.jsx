@@ -67,8 +67,8 @@ export default function Features() {
               Morrow answers from what was actually said.
             </p>
           </div>
-          <a className="button button-ghost" href="#demo">
-            Try a question
+          <a className="button button-ghost" href="#top">
+            Try it now
           </a>
         </article>
       </div>

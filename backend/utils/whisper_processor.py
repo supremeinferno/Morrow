@@ -19,13 +19,20 @@ def transcribe_chunk(chunk_path):
     return result["text"].strip()
 
 
-def transcribe_chunks(chunk_files):
-    """Transcribe audio chunks in order and join them into one transcript."""
+def transcribe_chunks(chunk_files, on_progress=None):
+    """
+    Transcribe audio chunks in order and join them into one transcript.
+    `on_progress(done, total)` is called after each chunk, if given.
+    """
 
     transcripts = []
+    total = len(chunk_files)
 
     for index, chunk_file in enumerate(chunk_files, start=1):
-        print(f"Transcribing chunk {index}/{len(chunk_files)}: {chunk_file.name}")
+        print(f"Transcribing chunk {index}/{total}: {chunk_file.name}")
         transcripts.append(transcribe_chunk(chunk_file))
+
+        if on_progress:
+            on_progress(index, total)
 
     return "\n\n".join(transcripts)

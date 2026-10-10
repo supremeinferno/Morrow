@@ -6,7 +6,7 @@ import { GithubIcon, LogoMark } from './Icons.jsx'
 const LINKS = [
   { href: '#features', label: 'Features' },
   { href: '#how-it-works', label: 'How it works' },
-  { href: '#demo', label: 'Demo' },
+  { href: '#get-started', label: 'Self-host' },
 ]
 
 export default function Navbar() {
@@ -39,8 +39,8 @@ export default function Navbar() {
           <a className="icon-link" href={GITHUB_URL} aria-label="Morrow on GitHub">
             <GithubIcon />
           </a>
-          <a className="button button-small button-primary" href="#get-started">
-            Get started
+          <a className="button button-small button-primary" href="#top">
+            Analyze a meeting
           </a>
         </div>
       </nav>

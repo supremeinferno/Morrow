@@ -1,4 +1,6 @@
-streamlit>=1.40.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
 python-dotenv>=1.0.1
 
 yt-dlp>=2025.1.15

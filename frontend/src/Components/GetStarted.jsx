@@ -5,9 +5,10 @@ import { useReveal } from '../hooks'
 import { CheckIcon, CopyIcon, GithubIcon } from './Icons.jsx'
 
 const COMMANDS = [
-  `git clone ${GITHUB_URL}.git`,
-  'cd Morrow && pip install -r requirements.txt',
-  'python -m backend.utils.main',
+  `git clone ${GITHUB_URL}.git && cd Morrow`,
+  'pip install -r requirements.txt',
+  'python -m uvicorn backend.api:app',
+  'cd frontend && npm install && npm run dev   # in a second terminal',
 ]
 
 export default function GetStarted() {
@@ -41,7 +42,7 @@ export default function GetStarted() {
           <em>Find out what comes next.</em>
         </h2>
         <p className="section-lede">
-          Morrow runs on your machine. You need Python 3.10+, FFmpeg and a free Groq API key.
+          Run Morrow on your own machine. You need Python 3.10+, Node.js, FFmpeg and a free Groq API key.
         </p>
 
         <div className="terminal">

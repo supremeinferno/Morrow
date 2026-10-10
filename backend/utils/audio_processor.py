@@ -71,12 +71,13 @@ def get_duration(input_file):
     return float(output.decode().strip())
 
 
-def chunk_audio(input_file, chunk_length=660, overlap=5):
+def chunk_audio(input_file, chunk_length=660, overlap=5, output_dir=CHUNKS_DIR):
     """Split audio into overlapping chunks and return their paths in order."""
 
     # Clear chunks from earlier runs so they don't leak into this transcript.
-    shutil.rmtree(CHUNKS_DIR, ignore_errors=True)
-    CHUNKS_DIR.mkdir(parents=True)
+    output_dir = Path(output_dir)
+    shutil.rmtree(output_dir, ignore_errors=True)
+    output_dir.mkdir(parents=True)
 
     duration = get_duration(input_file)
 
@@ -84,7 +85,7 @@ def chunk_audio(input_file, chunk_length=660, overlap=5):
     start = 0
 
     while start < duration:
-        output_file = CHUNKS_DIR / f"chunk_{len(chunks) + 1:03d}.wav"
+        output_file = output_dir / f"chunk_{len(chunks) + 1:03d}.wav"
 
         subprocess.run(
             [

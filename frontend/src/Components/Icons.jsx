@@ -87,6 +87,50 @@ export function CheckIcon(props) {
   )
 }
 
+export function LinkIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1" />
+      <path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1" />
+    </Icon>
+  )
+}
+
+export function UploadIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M12 15V4M7 9l5-5 5 5" />
+      <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </Icon>
+  )
+}
+
+export function FileIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 3v5h5M10 11.5v5l4-2.5Z" />
+    </Icon>
+  )
+}
+
+export function SendIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M12 19V5M6 11l6-6 6 6" />
+    </Icon>
+  )
+}
+
+export function AlertIcon(props) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5v5.5M12 16.5h.01" />
+    </Icon>
+  )
+}
+
 export function GithubIcon({ size = 18, ...props }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" {...props}>

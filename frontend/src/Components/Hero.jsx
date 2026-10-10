@@ -1,12 +1,11 @@
 import { lazy, Suspense, useRef } from 'react'
 
-import { GITHUB_URL } from '../constants.js'
-import { ArrowIcon, GithubIcon } from './Icons.jsx'
+import MeetingInput from './MeetingInput.jsx'
 
 // Loaded separately so the headline renders before three.js arrives.
 const HeroScene = lazy(() => import('./three/HeroScene.jsx'))
 
-export default function Hero() {
+export default function Hero({ onMeetingCreated }) {
   const heroRef = useRef(null)
 
   return (
@@ -30,20 +29,11 @@ export default function Hero() {
         </h1>
 
         <p className="hero-lede">
-          Morrow listens to your meeting recordings and gives you back what matters: the
-          summary, the decisions, the action items, and the questions still left open.
+          Paste a meeting link or upload a recording. Morrow gives you back the summary, the
+          decisions, the action items and the open questions, then lets you chat with the meeting.
         </p>
 
-        <div className="hero-actions">
-          <a className="button button-primary" href="#demo">
-            See it in action
-            <ArrowIcon size={18} />
-          </a>
-          <a className="button button-ghost" href={GITHUB_URL}>
-            <GithubIcon />
-            View on GitHub
-          </a>
-        </div>
+        <MeetingInput onCreated={onMeetingCreated} />
       </div>
 
       <a className="scroll-cue" href="#features" aria-label="Scroll to features">
