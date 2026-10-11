@@ -138,7 +138,9 @@ def chunk_audio(input_file, chunk_length=660, overlap=5, output_dir=CHUNKS_DIR):
     start = 0
 
     while start < duration:
-        output_file = output_dir / f"chunk_{len(chunks) + 1:03d}.wav"
+        # FLAC is lossless but about half the size of WAV, which keeps
+        # each 11-minute chunk under Groq's 25 MB upload limit.
+        output_file = output_dir / f"chunk_{len(chunks) + 1:03d}.flac"
 
         subprocess.run(
             [
@@ -148,7 +150,7 @@ def chunk_audio(input_file, chunk_length=660, overlap=5, output_dir=CHUNKS_DIR):
                 "-t", str(chunk_length),
                 "-ac", "1",
                 "-ar", "16000",
-                "-c:a", "pcm_s16le",
+                "-c:a", "flac",
                 str(output_file),
             ],
             check=True,

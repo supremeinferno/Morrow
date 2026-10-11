@@ -14,8 +14,8 @@ const STEPS = [
   },
   {
     title: 'Transcribe',
-    tool: 'Whisper',
-    description: 'Turns speech into text, running locally on your machine.',
+    tool: 'Whisper on Groq',
+    description: 'Turns speech into text with Whisper large-v3, running on Groq for speed.',
   },
   {
     title: 'Analyze',

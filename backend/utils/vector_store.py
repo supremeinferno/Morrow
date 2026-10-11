@@ -1,16 +1,36 @@
+from functools import cache
 from uuid import uuid4
 
+from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.embeddings import Embeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from backend.utils.config import VECTOR_DB_DIR
 
 
-embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2",
-    encode_kwargs={"normalize_embeddings": True},
-)
+class MiniLMEmbeddings(Embeddings):
+    """
+    all-MiniLM-L6-v2 run through ONNX Runtime (bundled with Chroma), which
+    needs far less memory than loading it with PyTorch.
+    """
+
+    def __init__(self):
+        self.model = ONNXMiniLM_L6_V2()
+
+    def embed_documents(self, texts):
+        return [[float(value) for value in vector] for vector in self.model(texts)]
+
+    def embed_query(self, text):
+        return self.embed_documents([text])[0]
+
+
+@cache
+def get_embeddings():
+    """Load the embedding model once, on first use."""
+
+    return MiniLMEmbeddings()
+
 
 rag_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
@@ -32,7 +52,7 @@ def create_vector_store(transcript):
 
     vector_store = Chroma(
         collection_name=f"meeting_{meeting_id}",
-        embedding_function=embeddings,
+        embedding_function=get_embeddings(),
         persist_directory=str(VECTOR_DB_DIR),
     )
 

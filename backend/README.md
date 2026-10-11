@@ -114,7 +114,7 @@ Items in `decisions`, `actions` and `questions` come from the LLM. They may be p
 | `queued` | Waiting for an earlier meeting to finish |
 | `downloading` | Fetching audio from the link (links only) |
 | `preparing` | Normalizing and chunking the audio |
-| `transcribing` | Running Whisper. `detail` shows chunk progress |
+| `transcribing` | Sending chunks to Whisper on Groq. `detail` shows chunk progress |
 | `analyzing` | Extracting summary, decisions, actions and questions |
 | `indexing` | Embedding the transcript for the chatbot |
 | `ready` | Done: `transcript` and `result` are filled in |
@@ -158,7 +158,9 @@ file ─────────────────────┘         
 
 - **Long transcripts** are split into ~6,000-character chunks. Each chunk is analyzed separately, then a consolidation step merges them and removes duplicates. Single-chunk meetings skip the merge, so no details are lost.
 - **Each meeting** gets its own temporary audio-chunk folder and its own Chroma collection, so jobs never mix.
-- **Processing** happens in a single background worker, because Whisper is resource-heavy.
+- **Processing** happens in a single background worker, one meeting at a time.
+- **Transcription** uses Whisper large-v3 turbo on Groq. Audio chunks are encoded as FLAC so each stays under Groq's 25 MB upload limit.
+- **Embeddings** use all-MiniLM-L6-v2 through ONNX Runtime (bundled with Chroma) instead of PyTorch. That keeps peak memory around 400 MB, small enough for Render's free plan.
 
 ---
 
@@ -170,7 +172,7 @@ backend/
 └── utils/
     ├── config.py            # Paths, .env loading, shared Groq LLM factory
     ├── audio_processor.py   # yt-dlp download, FFmpeg normalize + chunk
-    ├── whisper_processor.py # Lazy-loaded Whisper model, chunk transcription
+    ├── whisper_processor.py # Chunk transcription via Groq's Whisper API
     ├── summarizer.py        # Analysis + consolidation prompts (JSON output)
     ├── vector_store.py      # Transcript splitting, embeddings, Chroma
     ├── rag_engine.py        # Retrieval + grounded answer generation
@@ -188,7 +190,7 @@ Set these in `.env` locally or in your host's dashboard (e.g. Render → Environ
 | Variable | Required | Description |
 | --- | --- | --- |
 | `GROQ_API_KEY` | **Yes** | Groq API key for analysis and chat |
-| `WHISPER_MODEL` | No | Whisper size: `tiny`, `base`, `small` (default), `medium`, `large`. `base` needs ~1 GB RAM, `small` ~2 GB |
+| `GROQ_TRANSCRIPTION_MODEL` | No | Groq speech-to-text model. Default `whisper-large-v3-turbo`; `whisper-large-v3` is slightly more accurate |
 | `CORS_ORIGINS` | No | Comma-separated browser origins allowed to call the API directly. Default: `http://localhost:5173,https://trymorrow.vercel.app` |
 | `YTDLP_COOKIES_FILE` | No | Path to a browser-exported `cookies.txt`, used when YouTube blocks the server as a bot |
 | `YTDLP_PROXY` | No | Proxy URL for downloads, e.g. `http://user:pass@host:port` |
@@ -204,13 +206,13 @@ Set these in `.env` locally or in your host's dashboard (e.g. Render → Environ
 | Passages retrieved per question | `k` in `ask_meeting()` | 4 |
 | Accepted upload types | `MEDIA_SUFFIXES` in `api.py` | common audio/video formats |
 
-**Tip:** for noisy audio, `medium` or `large` Whisper models are more accurate but slower. `base` is faster on modest hardware.
+**Tip:** for difficult audio (heavy accents, noise), set `GROQ_TRANSCRIPTION_MODEL=whisper-large-v3`.
 
 ---
 
 ## Deployment (Docker / Render)
 
-The repo root contains a `Dockerfile` that installs FFmpeg, CPU-only PyTorch and the Python dependencies. It also downloads the Whisper and embedding models at build time.
+The repo root contains a `Dockerfile` that installs FFmpeg, Deno (for YouTube) and the Python dependencies, and downloads the embedding model at build time. There's no PyTorch or local Whisper, so the image is small and runs in about 400 MB of RAM.
 
 **Run locally with Docker:**
 
@@ -219,12 +221,10 @@ docker build -t morrow-api .
 docker run -p 8000:8000 --env-file .env morrow-api
 ```
 
-To bake a different Whisper model into the image, pass it at build time: `docker build --build-arg WHISPER_MODEL=base -t morrow-api .`
-
 **Deploy on Render:**
 
 1. Create a **Web Service** from the repo with **Language: Docker**. The `Dockerfile` handles the build and start commands.
-2. Add environment variables. `GROQ_API_KEY` is required. Use `WHISPER_MODEL=base` on instances with less than 2 GB of RAM.
+2. Add the `GROQ_API_KEY` environment variable. The free instance type is enough.
 3. Optionally set the **Health Check Path** to `/api/health`.
 4. If the frontend calls the API directly (via `VITE_API_URL`), make sure its origin is listed in `CORS_ORIGINS`.
 
@@ -271,5 +271,5 @@ All paths are relative to the **project root**, as set in `utils/config.py`. Mee
 | A link fails with `DownloadError` | The link isn't a supported video, or the video is private or region-locked. Try uploading the file instead. |
 | "YouTube blocked this download" | The server's IP is being bot-checked. See [YouTube on cloud servers](#deployment-docker--render). |
 | Browser shows a CORS error | Add the frontend's origin to `CORS_ORIGINS`. |
-| Container crashes while transcribing | Not enough memory. Set `WHISPER_MODEL=base` or use a larger instance. |
-| Transcription is slow | Use a smaller Whisper model (`base`), or run on a machine with a GPU. |
+| Transcription fails with `413` or a file-size error | A chunk exceeded Groq's upload limit. Lower `chunk_length` in `chunk_audio()`. |
+| Transcription fails with `429` | Groq rate limit reached. Wait, or upgrade your Groq plan. |

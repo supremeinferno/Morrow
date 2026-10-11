@@ -39,8 +39,8 @@ function ProgressSteps({ meeting }) {
       </ol>
 
       <p className="progress-note">
-        Whisper runs on your machine, so long meetings can take several minutes. You can keep
-        this tab open, or come back to this link later.
+        Long meetings can take a few minutes. You can keep this tab open, or come back to
+        this link later.
       </p>
     </div>
   )

@@ -152,7 +152,7 @@ export default function MeetingInput({ onCreated }) {
         <p className="input-hint">
           {mode === 'link'
             ? 'YouTube and most video sites work. Long meetings take a few minutes.'
-            : 'Your recording is transcribed locally with Whisper.'}
+            : 'MP4, MOV, MP3, WAV, M4A and more. Long recordings take a few minutes.'}
         </p>
       )}
     </form>

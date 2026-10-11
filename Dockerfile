@@ -1,4 +1,5 @@
-# Morrow API: FastAPI + Whisper + FFmpeg, ready for Render or any Docker host.
+# Morrow API: FastAPI + FFmpeg. Transcription and the LLM run on Groq, so the
+# image stays small enough for low-memory hosts like Render's free plan.
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -15,17 +16,11 @@ COPY --from=denoland/deno:bin-2.1.4 /deno /usr/local/bin/deno
 
 WORKDIR /app
 
-# Install CPU-only PyTorch first, so requirements.txt doesn't pull the multi-GB CUDA build.
-RUN pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-# Download the models at build time so the first request doesn't wait for them.
-ARG WHISPER_MODEL=small
-ENV WHISPER_MODEL=${WHISPER_MODEL}
-RUN python -c "import os, whisper; whisper.load_model(os.environ['WHISPER_MODEL'])" \
-    && python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+# Download the embedding model at build time so the first meeting doesn't wait for it.
+RUN python -c "from chromadb.utils.embedding_functions import ONNXMiniLM_L6_V2; ONNXMiniLM_L6_V2()(['warm up'])"
 
 COPY backend ./backend
 

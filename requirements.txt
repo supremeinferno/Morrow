@@ -5,18 +5,10 @@ python-dotenv>=1.0.1
 
 yt-dlp[default]>=2025.11.12
 
-openai-whisper>=20240930
-torch>=2.5.0
-torchaudio>=2.5.0
-
+groq>=0.11.0
 langchain-core>=0.3.0
 langchain-groq>=0.2.0
 langchain-text-splitters>=0.3.0
 
 chromadb>=0.5.0
 langchain-chroma>=0.2.0
-langchain-huggingface>=0.1.0
-sentence-transformers>=3.0.0
-
-transformers>=4.45.0
-huggingface-hub>=0.25.0

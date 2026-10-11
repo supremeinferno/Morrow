@@ -6,7 +6,7 @@
 ![FastAPI](https://img.shields.io/badge/API-FastAPI-009688)
 ![React](https://img.shields.io/badge/frontend-React%2019-61dafb)
 ![Three.js](https://img.shields.io/badge/3D-Three.js-black)
-![Whisper](https://img.shields.io/badge/ASR-Whisper-black)
+![Whisper](https://img.shields.io/badge/ASR-Whisper%20large--v3-black)
 ![Groq](https://img.shields.io/badge/LLM-Groq-orange)
 
 Morrow is an AI meeting assistant. Paste a meeting link or upload a recording, and Morrow returns the **summary**, the **decisions**, the **action items** and the **open questions**. You can then **chat with the meeting**: the assistant answers only from what was actually said.
@@ -32,7 +32,7 @@ Morrow is an AI meeting assistant. Paste a meeting link or upload a recording, a
 | Feature | Description |
 | --- | --- |
 | **Link or upload** | Paste a YouTube (or other video site) link, or drag and drop an audio or video file. |
-| **Local transcription** | Speech-to-text with OpenAI Whisper, running on your own machine. |
+| **Accurate transcription** | Speech-to-text with Whisper large-v3, hosted on Groq for speed. |
 | **Meeting summary** | A concise overview of the key discussion and context. |
 | **Decisions** | Only decisions that were actually made. Suggestions stay out. |
 | **Action items** | Tasks with owners and deadlines, but only when they were stated. |
@@ -56,11 +56,11 @@ Morrow is designed to **stay grounded**. It never invents names, deadlines or de
           │        FastAPI backend       │
           └──────────────┬───────────────┘
                          │
-   Download (yt-dlp) ─► Normalize + chunk (FFmpeg) ─► Transcribe (Whisper)
+   Download (yt-dlp) ─► Normalize + chunk (FFmpeg) ─► Transcribe (Whisper/Groq)
                                                             │
                                          ┌──────────────────┴──────────────────┐
                                          ▼                                     ▼
-                              LLM analysis (Groq)                   Embeddings (MiniLM)
+                              LLM analysis (Groq)                   Embeddings (MiniLM/ONNX)
                      summary · decisions · actions · questions      Chroma vector store
                                                                                │
                                                                      RAG chatbot (Groq)
@@ -68,7 +68,7 @@ Morrow is designed to **stay grounded**. It never invents names, deadlines or de
 
 1. **Ingest.** The audio is downloaded from the link, or taken from the uploaded file.
 2. **Prepare.** FFmpeg converts it to 16 kHz mono, levels the loudness and splits it into overlapping 11-minute chunks.
-3. **Transcribe.** Whisper transcribes each chunk locally.
+3. **Transcribe.** Whisper large-v3 transcribes each chunk through Groq's API.
 4. **Analyze.** Groq extracts the summary, decisions, action items and open questions. Long meetings are analyzed in parts and then merged.
 5. **Index.** The transcript is embedded into a Chroma collection that belongs to that meeting.
 6. **Chat.** Each question retrieves the most relevant passages, and the LLM answers using only those passages.
@@ -82,9 +82,9 @@ Morrow is designed to **stay grounded**. It never invents names, deadlines or de
 | Frontend | React 19, Vite, Three.js via React Three Fiber |
 | API | FastAPI, Uvicorn |
 | Audio | yt-dlp, FFmpeg |
-| Speech-to-text | OpenAI Whisper (`small`, local) |
+| Speech-to-text | Whisper large-v3 turbo, via Groq |
 | LLM | Groq (`openai/gpt-oss-120b`) via LangChain |
-| Embeddings | `sentence-transformers/all-MiniLM-L6-v2` |
+| Embeddings | `all-MiniLM-L6-v2` via ONNX Runtime |
 | Vector database | Chroma |
 
 ---
@@ -157,7 +157,7 @@ npm run dev
 
 Open **http://localhost:5173**. The dev server forwards `/api` requests to the backend.
 
-> **First run:** Whisper and the embedding model download on first use (a few hundred MB). Later runs use the cached copies.
+> **First run:** the embedding model (~80 MB) downloads on first use. Later runs use the cached copy.
 
 ---
 
@@ -176,7 +176,7 @@ Prefer the terminal? The pipeline also runs as a CLI. See [backend/README.md](ba
 
 | Part | Platform | How |
 | --- | --- | --- |
-| Backend | Render (Docker) | Uses the root `Dockerfile`. Set `GROQ_API_KEY`, plus `WHISPER_MODEL=base` on small instances |
+| Backend | Render (Docker) | Uses the root `Dockerfile`. Set `GROQ_API_KEY`. Runs on the free plan (~400 MB RAM peak) |
 | Frontend | Vercel | Root Directory `frontend`. `/api` goes to the backend via `vercel.json`, or directly via `VITE_API_URL` |
 
 Full steps: [backend deployment](backend/README.md#deployment-docker--render) · [frontend production build](frontend/README.md#production-build).
@@ -186,7 +186,9 @@ Full steps: [backend deployment](backend/README.md#deployment-docker--render) ·
 ## Limitations
 
 - **Meetings are stored in memory.** Restarting the API clears processed meetings, though the vector data stays in `chroma_db/`.
-- **One meeting at a time.** Transcription is CPU/GPU heavy, so meetings are queued and processed one after another.
+- **One meeting at a time.** Meetings are queued and processed one after another.
+- **Groq usage limits.** Transcription and analysis use your Groq API key. The free tier limits how many hours of audio you can transcribe per day.
+- **Audio leaves the server.** Recordings are sent to Groq for transcription. Check this fits your privacy needs.
 - **No authentication.** Morrow is built for local use. Add auth and rate limiting before exposing it publicly.
 - **YouTube on cloud hosts.** YouTube often bot-blocks downloads from servers like Render. Uploading the file always works, and links can be re-enabled with cookies or a proxy ([details](backend/README.md#deployment-docker--render)).
 - **Processing time.** It scales with recording length and your hardware. A one-hour meeting can take several minutes to transcribe on a CPU.
@@ -195,7 +197,7 @@ Full steps: [backend deployment](backend/README.md#deployment-docker--render) ·
 
 ## Roadmap
 
-- [x] Local transcription with Whisper
+- [x] Transcription with Whisper large-v3 (via Groq)
 - [x] Summary, decisions, action items and open questions
 - [x] RAG chatbot over meeting transcripts
 - [x] Web app with link and file upload

@@ -1,24 +1,29 @@
-import os
 from functools import cache
 
-import whisper
+from groq import Groq
 
-
-# "base" needs ~1 GB of RAM, "small" ~2 GB. Override with the WHISPER_MODEL env var.
-WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
+from backend.utils.config import GROQ_TRANSCRIPTION_MODEL, get_groq_api_key
 
 
 @cache
-def get_model():
-    """Load the Whisper model once, on first use."""
+def get_client():
+    """Create the Groq client once, on first use."""
 
-    return whisper.load_model(WHISPER_MODEL)
+    return Groq(api_key=get_groq_api_key(), max_retries=3)
 
 
 def transcribe_chunk(chunk_path):
-    result = get_model().transcribe(str(chunk_path), fp16=False)
+    """Transcribe one audio file with Whisper hosted on Groq."""
 
-    return result["text"].strip()
+    with open(chunk_path, "rb") as audio:
+        result = get_client().audio.transcriptions.create(
+            file=(chunk_path.name, audio.read()),
+            model=GROQ_TRANSCRIPTION_MODEL,
+            response_format="json",
+            temperature=0,
+        )
+
+    return result.text.strip()
 
 
 def transcribe_chunks(chunk_files, on_progress=None):
