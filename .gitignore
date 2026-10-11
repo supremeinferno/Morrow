@@ -19,3 +19,6 @@ chroma_db/
 
 # OS
 .DS_Store
+# YouTube cookies for yt-dlp (contain a login session)
+cookies.txt
+*cookies*.txt
