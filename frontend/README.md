@@ -134,10 +134,10 @@ frontend/
 
 | Component | Responsibility |
 | --- | --- |
-| `MeetingInput` | Tabs for **Paste a link** / **Upload a file**, drag-and-drop dropzone, upload progress, validation errors |
+| `MeetingInput` | Drag-and-drop upload with progress. The **Paste a link** tab appears only when `/api/health` reports `links: true` |
 | `Workspace` | Picks the view for the meeting's status: progress steps, error card, or report + chat |
 | `MeetingReport` | Renders the analysis. Normalizes LLM items that may be strings or `{ task, owner, deadline }` objects. Copy-to-clipboard and full transcript |
-| `MeetingChat` | Suggested questions, free-text input, "thinking" indicator, error bubbles |
+| `MeetingChat` | Suggested questions, free-text input, "thinking" indicator, error bubbles. Answers render as Markdown (bold, lists, tables) via `react-markdown`; raw HTML is never rendered |
 
 ---
 

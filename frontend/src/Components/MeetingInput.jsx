@@ -125,17 +125,21 @@ export default function MeetingInput({ onCreated, allowLinks }) {
               accept={ACCEPTED_FILES}
               onChange={(event) => chooseFile(event.target.files[0])}
             />
-            {file ? <FileIcon size={20} /> : <UploadIcon size={20} />}
+            <span className="dropzone-icon">
+              {file ? <FileIcon size={22} /> : <UploadIcon size={22} />}
+            </span>
             <span className="dropzone-text">
               {file ? (
                 <>
                   <strong>{file.name}</strong>
-                  <span>{formatSize(file.size)} · click to change</span>
+                  <span>{formatSize(file.size)} · click to choose a different file</span>
                 </>
               ) : (
                 <>
-                  <strong>Drop a recording here</strong>
-                  <span>or click to browse · MP4, MOV, MP3, WAV, M4A</span>
+                  <strong>Drop your meeting recording here</strong>
+                  <span>
+                    or <u>browse files</u> · MP4, MOV, MP3, WAV, M4A and more
+                  </span>
                 </>
               )}
             </span>

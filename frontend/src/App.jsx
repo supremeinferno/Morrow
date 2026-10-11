@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 
 import {
   Features,
@@ -9,9 +9,11 @@ import {
   Pipeline,
   Principles,
   TechStack,
-  Workspace,
 } from './Components'
 import './App.css'
+
+// Loaded only once a meeting exists; it carries the report, chat and Markdown renderer.
+const Workspace = lazy(() => import('./Components/Workspace.jsx'))
 
 // The meeting ID lives in the URL so a refresh (or a shared link) reopens it.
 function readMeetingId() {
@@ -46,7 +48,11 @@ export default function App() {
       <Navbar />
       <main>
         <Hero onMeetingCreated={openMeeting} />
-        {meetingId && <Workspace key={meetingId} meetingId={meetingId} onReset={resetMeeting} />}
+        {meetingId && (
+          <Suspense fallback={null}>
+            <Workspace key={meetingId} meetingId={meetingId} onReset={resetMeeting} />
+          </Suspense>
+        )}
         <TechStack />
         <Features />
         <Pipeline />

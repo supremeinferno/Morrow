@@ -5,7 +5,7 @@ const STACK = [
   { name: 'Chroma', role: 'Vector store' },
   { name: 'MiniLM', role: 'Embeddings' },
   { name: 'FFmpeg', role: 'Audio processing' },
-  { name: 'yt-dlp', role: 'Audio download' },
+  { name: 'FastAPI', role: 'Backend API' },
 ]
 
 export default function TechStack() {

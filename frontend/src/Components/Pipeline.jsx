@@ -3,9 +3,9 @@ import SectionHeading from './SectionHeading.jsx'
 
 const STEPS = [
   {
-    title: 'Extract',
-    tool: 'yt-dlp',
-    description: 'Pulls the audio track from a YouTube link.',
+    title: 'Upload',
+    tool: 'Any audio or video',
+    description: 'Drop in a recording: MP4, MOV, MKV, MP3, WAV, M4A and more.',
   },
   {
     title: 'Prepare',
@@ -36,7 +36,7 @@ export default function Pipeline() {
     <section className="section section-tinted" id="how-it-works">
       <div className="container reveal" ref={revealRef}>
         <SectionHeading eyebrow="How it works" title="From recording to clarity in five steps.">
-          One link in, one structured report out. Here's what happens in between.
+          One recording in, one structured report out. Here's what happens in between.
         </SectionHeading>
 
         <ol className="pipeline">

@@ -1,8 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import { askQuestion } from '../api.js'
 import { usePrefersReducedMotion } from '../hooks'
 import { SendIcon } from './Icons.jsx'
+
+// Answers are Markdown (bold, lists, tables). Raw HTML is never rendered.
+const MARKDOWN_COMPONENTS = {
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noreferrer">
+      {children}
+    </a>
+  ),
+}
 
 const SUGGESTIONS = [
   'What were the main decisions?',
@@ -72,19 +83,25 @@ export default function MeetingChat({ meetingId }) {
         )}
 
         {messages.map((message, index) => (
-          <p className={`bubble bubble-${message.role}`} key={index}>
-            {message.text}
-          </p>
+          <div className={`bubble bubble-${message.role}`} key={index}>
+            {message.role === 'morrow' ? (
+              <Markdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+                {message.text}
+              </Markdown>
+            ) : (
+              message.text
+            )}
+          </div>
         ))}
 
         {isThinking && (
-          <p className="bubble bubble-morrow">
+          <div className="bubble bubble-morrow">
             <span className="thinking" aria-label="Morrow is thinking">
               <span />
               <span />
               <span />
             </span>
-          </p>
+          </div>
         )}
       </div>
 
