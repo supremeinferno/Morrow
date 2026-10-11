@@ -121,6 +121,12 @@ BOT_CHECK_ERROR = (
 )
 
 
+EXPIRED_COOKIES_ERROR = (
+    "YouTube rejected the server's login cookies (they have probably expired). "
+    "Please try again later, or use \"Upload a file\" instead."
+)
+
+
 def describe_error(error):
     """Turn known pipeline failures into messages a user can act on."""
 
@@ -128,6 +134,9 @@ def describe_error(error):
 
     if "confirm you" in message and "not a bot" in message:
         return BOT_CHECK_ERROR
+
+    if "page needs to be reloaded" in message:
+        return EXPIRED_COOKIES_ERROR
 
     return f"{type(error).__name__}: {message}"
 
