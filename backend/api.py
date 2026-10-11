@@ -187,9 +187,13 @@ class QuestionRequest(BaseModel):
 
 @app.get("/api/health")
 def health():
-    """Uptime check that also shows whether YouTube downloads are set up."""
+    """
+    Uptime check. `links` tells the frontend whether video links can work:
+    YouTube blocks cloud servers unless cookies or a proxy are configured.
+    """
 
-    return {"status": "ok", "youtube": youtube_setup()}
+    youtube = youtube_setup()
+    return {"status": "ok", "links": youtube["cookies"] or youtube["proxy"], "youtube": youtube}
 
 
 @app.post("/api/meetings", status_code=202)

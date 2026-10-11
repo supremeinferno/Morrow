@@ -16,8 +16,10 @@ function formatSize(bytes) {
 }
 
 /** Lets the user submit a meeting as a video link or an uploaded recording. */
-export default function MeetingInput({ onCreated }) {
-  const [mode, setMode] = useState('link')
+export default function MeetingInput({ onCreated, allowLinks }) {
+  const [chosenMode, setMode] = useState(null)
+  // Links only work when the server is set up for YouTube; otherwise upload only.
+  const mode = allowLinks ? (chosenMode ?? 'link') : 'upload'
   const [url, setUrl] = useState('')
   const [file, setFile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -68,24 +70,26 @@ export default function MeetingInput({ onCreated }) {
 
   return (
     <form className="meeting-input" onSubmit={onSubmit}>
-      <div className="mode-tabs" role="tablist" aria-label="Meeting source">
-        {MODES.map(({ id, label, icon: ModeIcon }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={mode === id}
-            className={`mode-tab ${mode === id ? 'is-active' : ''}`}
-            onClick={() => {
-              setMode(id)
-              setError(null)
-            }}
-          >
-            <ModeIcon size={16} />
-            {label}
-          </button>
-        ))}
-      </div>
+      {allowLinks && (
+        <div className="mode-tabs" role="tablist" aria-label="Meeting source">
+          {MODES.map(({ id, label, icon: ModeIcon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={mode === id}
+              className={`mode-tab ${mode === id ? 'is-active' : ''}`}
+              onClick={() => {
+                setMode(id)
+                setError(null)
+              }}
+            >
+              <ModeIcon size={16} />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {mode === 'link' ? (
         <div className="input-row">
@@ -152,7 +156,7 @@ export default function MeetingInput({ onCreated }) {
         <p className="input-hint">
           {mode === 'link'
             ? 'YouTube and most video sites work. Long meetings take a few minutes.'
-            : 'MP4, MOV, MP3, WAV, M4A and more. Long recordings take a few minutes.'}
+            : 'Long recordings take a few minutes to process.'}
         </p>
       )}
     </form>

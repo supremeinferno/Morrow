@@ -59,6 +59,10 @@ export function uploadMeeting(file, onProgress) {
   })
 }
 
+export function getHealth() {
+  return request('/health')
+}
+
 export function getMeeting(meetingId) {
   return request(`/meetings/${meetingId}`)
 }
