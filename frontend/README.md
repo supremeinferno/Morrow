@@ -99,6 +99,7 @@ frontend/
     ├── App.css                # Section and component styles
     ├── hooks/
     │   ├── index.js
+    │   ├── useLinkSupport.js  # Asks /api/health whether video links can work
     │   ├── useMeeting.js      # Fetch + poll a meeting until it finishes
     │   ├── useReveal.js       # Fade sections in on scroll
     │   └── usePrefersReducedMotion.js

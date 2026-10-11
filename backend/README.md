@@ -249,7 +249,7 @@ The pipeline also runs without the web app:
 python -m backend.utils.main
 ```
 
-Paste a YouTube URL when prompted. The report prints to the terminal.
+Paste a video URL when prompted. The report prints to the terminal. This uses the download path, so YouTube may need cookies (see below).
 
 ---
 

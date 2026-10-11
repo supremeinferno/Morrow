@@ -1164,6 +1164,13 @@
   font-size: 13px;
 }
 
+.dropzone-text .dropzone-formats {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+}
+
 .dropzone-text u {
   color: var(--amber);
   text-decoration-color: rgba(255, 180, 94, 0.5);
@@ -1474,6 +1481,16 @@
 .report-actions {
   display: flex;
   gap: 4px;
+}
+
+.report-header {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.report-header h3,
+.copy-button {
+  white-space: nowrap;
 }
 
 .print-report {

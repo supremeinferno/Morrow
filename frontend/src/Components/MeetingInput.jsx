@@ -138,8 +138,9 @@ export default function MeetingInput({ onCreated, allowLinks }) {
                 <>
                   <strong>Drop your meeting recording here</strong>
                   <span>
-                    or <u>browse files</u> · MP4, MOV, MP3, WAV, M4A and more
+                    or <u>browse files</u>
                   </span>
+                  <span className="dropzone-formats">MP4 · MOV · MKV · MP3 · WAV · M4A</span>
                 </>
               )}
             </span>

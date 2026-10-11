@@ -9,7 +9,7 @@
 ![Whisper](https://img.shields.io/badge/ASR-Whisper%20large--v3-black)
 ![Groq](https://img.shields.io/badge/LLM-Groq-orange)
 
-Morrow is an AI meeting assistant. Paste a meeting link or upload a recording, and Morrow returns the **summary**, the **decisions**, the **action items** and the **open questions**. You can then **chat with the meeting**: the assistant answers only from what was actually said.
+Morrow is an AI meeting assistant. Upload a meeting recording, and Morrow returns the **summary**, the **decisions**, the **action items** and the **open questions**. You can then **chat with the meeting**: the assistant answers only from what was actually said.
 
 ---
 
@@ -31,13 +31,13 @@ Morrow is an AI meeting assistant. Paste a meeting link or upload a recording, a
 
 | Feature | Description |
 | --- | --- |
-| **Link or upload** | Paste a YouTube (or other video site) link, or drag and drop an audio or video file. |
+| **Upload any recording** | Drag and drop audio or video: MP4, MOV, MKV, WebM, MP3, WAV, M4A and more. YouTube links are optional (see [Limitations](#limitations)). |
 | **Accurate transcription** | Speech-to-text with Whisper large-v3, hosted on Groq for speed. |
 | **Meeting summary** | A concise overview of the key discussion and context. |
 | **Decisions** | Only decisions that were actually made. Suggestions stay out. |
 | **Action items** | Tasks with owners and deadlines, but only when they were stated. |
 | **Open questions** | Unresolved questions that need follow-up. |
-| **Meeting chatbot** | A RAG chatbot that answers from the transcript, and says so when the answer isn't there. |
+| **Meeting chatbot** | A RAG chatbot that answers from the transcript, and says so when the answer isn't there. Answers render with formatting (bold, lists, tables). |
 | **Export** | Copy the report as text, or export a clean PDF (any language) with the full transcript. |
 | **Live progress** | Step-by-step status while the meeting is processed. Refreshing the page picks up where it left off. |
 
@@ -50,14 +50,14 @@ Morrow is designed to **stay grounded**. It never invents names, deadlines or de
 ```text
           ┌──────────────────────────────┐
           │   Web app (React + Three.js) │
-          │   link / file · report · chat│
+          │  upload · report · chat · PDF│
           └──────────────┬───────────────┘
                          │  /api
           ┌──────────────▼───────────────┐
           │        FastAPI backend       │
           └──────────────┬───────────────┘
                          │
-   Download (yt-dlp) ─► Normalize + chunk (FFmpeg) ─► Transcribe (Whisper/Groq)
+   Upload ─► Normalize + chunk (FFmpeg) ─► Transcribe (Whisper/Groq)
                                                             │
                                          ┌──────────────────┴──────────────────┐
                                          ▼                                     ▼
@@ -67,7 +67,7 @@ Morrow is designed to **stay grounded**. It never invents names, deadlines or de
                                                                      RAG chatbot (Groq)
 ```
 
-1. **Ingest.** The audio is downloaded from the link, or taken from the uploaded file.
+1. **Upload.** The recording is uploaded to the API. Optionally, YouTube links skip steps 2–3 and use the video's captions instead.
 2. **Prepare.** FFmpeg converts it to 16 kHz mono, levels the loudness and splits it into overlapping 11-minute chunks.
 3. **Transcribe.** Whisper large-v3 transcribes each chunk through Groq's API.
 4. **Analyze.** Groq extracts the summary, decisions, action items and open questions. Long meetings are analyzed in parts and then merged.
@@ -164,9 +164,9 @@ Open **http://localhost:5173**. The dev server forwards `/api` requests to the b
 
 ## Using Morrow
 
-1. **Add a meeting.** Paste a link, or switch to **Upload a file** and drop in a recording (MP4, MOV, MKV, WebM, MP3, WAV, M4A and more).
+1. **Add a meeting.** Drag and drop a recording (MP4, MOV, MKV, WebM, MP3, WAV, M4A and more) or click to browse. If the server has a captions API key, a **Paste a link** tab also appears for YouTube.
 2. **Watch it process.** The workspace shows each step: downloading, preparing, transcribing, extracting insights and building the chat. The meeting ID is kept in the URL, so you can refresh or come back later.
-3. **Read the report.** You get the summary, decisions, action items (with owner and deadline when they were stated) and open questions. Use **Copy** to paste it anywhere, or expand the full transcript.
+3. **Read the report.** You get the summary, decisions, action items (with owner and deadline when they were stated) and open questions. Use **Copy** to paste it anywhere, **Export PDF** to save a clean report with the full transcript, or expand the transcript on the page.
 4. **Ask questions.** Chat with the meeting: *"Who is responsible for what?"*, *"What was decided about pricing?"* If the meeting doesn't cover something, Morrow says so instead of guessing.
 
 Prefer the terminal? The pipeline also runs as a CLI. See [backend/README.md](backend/README.md#command-line-usage).
