@@ -173,6 +173,7 @@ backend/
     ├── config.py            # Paths, .env loading, shared Groq LLM factory
     ├── audio_processor.py   # yt-dlp download, FFmpeg normalize + chunk
     ├── whisper_processor.py # Chunk transcription via Groq's Whisper API
+    ├── youtube_transcript.py# YouTube captions via the Supadata API
     ├── summarizer.py        # Analysis + consolidation prompts (JSON output)
     ├── vector_store.py      # Transcript splitting, embeddings, Chroma
     ├── rag_engine.py        # Retrieval + grounded answer generation
@@ -192,6 +193,8 @@ Set these in `.env` locally or in your host's dashboard (e.g. Render → Environ
 | `GROQ_API_KEY` | **Yes** | Groq API key for analysis and chat |
 | `GROQ_TRANSCRIPTION_MODEL` | No | Groq speech-to-text model. Default `whisper-large-v3-turbo`; `whisper-large-v3` is slightly more accurate |
 | `CORS_ORIGINS` | No | Comma-separated browser origins allowed to call the API directly. Default: `http://localhost:5173,https://trymorrow.vercel.app` |
+| `SUPADATA_API_KEY` | No | Enables YouTube links on cloud hosts by reading the video's captions through [Supadata](https://supadata.ai) |
+| `SUPADATA_MODE` | No | `native` (default: existing captions, 1 credit/video) or `auto` (falls back to AI transcription, 2 credits/minute) |
 | `YTDLP_COOKIES_FILE` | No | Path to a browser-exported `cookies.txt`, used when YouTube blocks the server as a bot |
 | `YTDLP_PROXY` | No | Proxy URL for downloads, e.g. `http://user:pass@host:port` |
 
@@ -228,10 +231,13 @@ docker run -p 8000:8000 --env-file .env morrow-api
 3. Optionally set the **Health Check Path** to `/api/health`.
 4. If the frontend calls the API directly (via `VITE_API_URL`), make sure its origin is listed in `CORS_ORIGINS`.
 
-**YouTube on cloud servers.** YouTube often blocks downloads from data-center IPs ("Sign in to confirm you're not a bot"). Users then see a message telling them to upload the file instead. To make links work:
+**YouTube on cloud servers.** YouTube blocks audio downloads from data-center IPs ("Sign in to confirm you're not a bot"). The site hides the link tab until one of these is configured (see `links` in `/api/health`):
 
+- **Captions API (recommended):** set `SUPADATA_API_KEY`. YouTube links then use the video's captions instead of downloading audio. This works reliably from servers, but videos without captions can't be read (users are told to upload instead). Other video sites still use the download path.
 - **Cookies:** sign in to YouTube with a throwaway account in a private window, export `cookies.txt` (e.g. with the "Get cookies.txt LOCALLY" extension), and add it as a Render **Secret File**. Then set `YTDLP_COOKIES_FILE=/etc/secrets/cookies.txt`. Cookies expire, so refresh them if links start failing again.
 - **Proxy:** set `YTDLP_PROXY` to a residential proxy. Data-center proxies are blocked too.
+
+Cookies are fragile: YouTube often rejects them when they're used from a different IP ("The page needs to be reloaded"). Prefer the captions API.
 
 ---
 
@@ -269,7 +275,8 @@ All paths are relative to the **project root**, as set in `utils/config.py`. Mee
 | `ModuleNotFoundError: backend` | Run commands from the project root, using `python -m ...`. |
 | `.venv/bin/uvicorn: bad interpreter` | The virtualenv was copied from another location. Use `python -m uvicorn ...` or recreate `.venv`. |
 | A link fails with `DownloadError` | The link isn't a supported video, or the video is private or region-locked. Try uploading the file instead. |
-| "YouTube blocked this download" | The server's IP is being bot-checked. See [YouTube on cloud servers](#deployment-docker--render). |
+| "YouTube blocked this download" | The server's IP is being bot-checked. Set `SUPADATA_API_KEY`; see [YouTube on cloud servers](#deployment-docker--render). |
+| "This video has no captions" | The video has no YouTube captions. Upload the file, or set `SUPADATA_MODE=auto`. |
 | Browser shows a CORS error | Add the frontend's origin to `CORS_ORIGINS`. |
 | Transcription fails with `413` or a file-size error | A chunk exceeded Groq's upload limit. Lower `chunk_length` in `chunk_audio()`. |
 | Transcription fails with `429` | Groq rate limit reached. Wait, or upgrade your Groq plan. |

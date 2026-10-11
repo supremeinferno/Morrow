@@ -190,7 +190,7 @@ Full steps: [backend deployment](backend/README.md#deployment-docker--render) ·
 - **Groq usage limits.** Transcription and analysis use your Groq API key. The free tier limits how many hours of audio you can transcribe per day.
 - **Audio leaves the server.** Recordings are sent to Groq for transcription. Check this fits your privacy needs.
 - **No authentication.** Morrow is built for local use. Add auth and rate limiting before exposing it publicly.
-- **YouTube on cloud hosts.** YouTube often bot-blocks downloads from servers like Render. Uploading the file always works, and links can be re-enabled with cookies or a proxy ([details](backend/README.md#deployment-docker--render)).
+- **YouTube on cloud hosts.** YouTube blocks audio downloads from servers like Render, so hosted YouTube links use the video's captions via the [Supadata](https://supadata.ai) API (`SUPADATA_API_KEY`). Videos without captions need to be uploaded ([details](backend/README.md#deployment-docker--render)).
 - **Processing time.** It scales with recording length and your hardware. A one-hour meeting can take several minutes to transcribe on a CPU.
 
 ---

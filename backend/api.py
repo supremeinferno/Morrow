@@ -31,6 +31,13 @@ from backend.utils.rag_engine import ask_meeting
 from backend.utils.summarizer import analyze_meeting
 from backend.utils.vector_store import create_vector_store
 from backend.utils.whisper_processor import transcribe_chunks
+from backend.utils.youtube_transcript import (
+    TranscriptError,
+    captions_enabled,
+    fetch_video_title,
+    fetch_youtube_transcript,
+    is_youtube_url,
+)
 
 
 UPLOAD_DIR = DOWNLOAD_DIR / "uploads"
@@ -132,6 +139,9 @@ def describe_error(error):
 
     message = str(error)
 
+    if isinstance(error, TranscriptError):
+        return message
+
     if "confirm you" in message and "not a bot" in message:
         return BOT_CHECK_ERROR
 
@@ -140,29 +150,42 @@ def describe_error(error):
 
     return f"{type(error).__name__}: {message}"
 
+
+def transcribe_audio(meeting, audio_file):
+    """Normalize, chunk and transcribe an audio or video file."""
+
+    meeting.update("preparing", "Normalizing and chunking audio...")
+    normalized_file = normalize_audio(audio_file)
+    chunks = chunk_audio(normalized_file, output_dir=CHUNKS_DIR / meeting.id)
+
+    meeting.update("transcribing", f"Transcribing chunk 1 of {len(chunks)}...")
+    return transcribe_chunks(
+        chunks,
+        on_progress=lambda done, total: meeting.update(
+            "transcribing",
+            f"Transcribed {done} of {total} chunk(s)...",
+        ),
+    )
+
+
 def process_meeting(meeting, url=None, upload_path=None):
     """Run the full pipeline for one meeting, recording progress as it goes."""
 
     try:
-        if url:
+        if url and is_youtube_url(url) and captions_enabled():
+            # YouTube blocks audio downloads from servers, so use its captions.
+            meeting.update("transcribing", "Fetching the video's captions...")
+            meeting.title = fetch_video_title(url) or meeting.title
+            transcript = fetch_youtube_transcript(url)
+
+        elif url:
             meeting.update("downloading", "Downloading audio...")
             audio_file = download_audio(url)
             meeting.title = audio_file.stem
+            transcript = transcribe_audio(meeting, audio_file)
+
         else:
-            audio_file = upload_path
-
-        meeting.update("preparing", "Normalizing and chunking audio...")
-        normalized_file = normalize_audio(audio_file)
-        chunks = chunk_audio(normalized_file, output_dir=CHUNKS_DIR / meeting.id)
-
-        meeting.update("transcribing", f"Transcribing chunk 1 of {len(chunks)}...")
-        transcript = transcribe_chunks(
-            chunks,
-            on_progress=lambda done, total: meeting.update(
-                "transcribing",
-                f"Transcribed {done} of {total} chunk(s)...",
-            ),
-        )
+            transcript = transcribe_audio(meeting, upload_path)
 
         if not transcript.strip():
             raise RuntimeError("No speech was detected in this recording.")
@@ -198,11 +221,14 @@ class QuestionRequest(BaseModel):
 def health():
     """
     Uptime check. `links` tells the frontend whether video links can work:
-    YouTube blocks cloud servers unless cookies or a proxy are configured.
+    YouTube blocks cloud servers unless the captions API, cookies or a proxy
+    is configured.
     """
 
-    youtube = youtube_setup()
-    return {"status": "ok", "links": youtube["cookies"] or youtube["proxy"], "youtube": youtube}
+    youtube = {"captions_api": captions_enabled(), **youtube_setup()}
+    links = youtube["captions_api"] or youtube["cookies"] or youtube["proxy"]
+
+    return {"status": "ok", "links": links, "youtube": youtube}
 
 
 @app.post("/api/meetings", status_code=202)
