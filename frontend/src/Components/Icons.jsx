@@ -87,6 +87,15 @@ export function CheckIcon(props) {
   )
 }
 
+export function DownloadIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M12 4v11M7 10l5 5 5-5" />
+      <path d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1" />
+    </Icon>
+  )
+}
+
 export function LinkIcon(props) {
   return (
     <Icon {...props}>

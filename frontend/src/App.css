@@ -1468,3 +1468,111 @@
     box-shadow: 0 0 90px 0 var(--rose);
   }
 }
+
+/* ---------- Report actions + PDF export (print) ---------- */
+
+.report-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.print-report {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 18mm 16mm;
+  }
+
+  /* Print only the report: hide the app and show the printable layout. */
+  #root {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .print-report {
+    display: block;
+    color: #1d1b26;
+    font-family: var(--font-sans);
+    font-size: 11pt;
+    line-height: 1.55;
+  }
+
+  .print-header {
+    padding-bottom: 14pt;
+    margin-bottom: 18pt;
+    border-bottom: 2pt solid #ff7a8a;
+  }
+
+  .print-brand {
+    color: #c96a2c;
+    font-family: var(--font-mono);
+    font-size: 8.5pt;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .print-header h1 {
+    margin-top: 6pt;
+    font-size: 22pt;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  .print-date {
+    margin-top: 4pt;
+    color: #6b6880;
+    font-size: 9.5pt;
+  }
+
+  .print-report section {
+    margin-bottom: 16pt;
+    break-inside: avoid;
+  }
+
+  .print-report h2 {
+    margin-bottom: 6pt;
+    color: #c96a2c;
+    font-size: 10pt;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .print-report ul {
+    padding-left: 16pt;
+    list-style: disc;
+  }
+
+  .print-report li + li {
+    margin-top: 4pt;
+  }
+
+  .print-meta,
+  .print-empty {
+    color: #6b6880;
+  }
+
+  .print-report .print-transcript {
+    break-before: page;
+    break-inside: auto;
+  }
+
+  .print-transcript p {
+    color: #3a3848;
+    font-size: 9.5pt;
+    white-space: pre-wrap;
+  }
+
+  .print-footer {
+    margin-top: 24pt;
+    padding-top: 8pt;
+    border-top: 0.75pt solid #ddd;
+    color: #8a879c;
+    font-size: 8.5pt;
+  }
+}

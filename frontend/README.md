@@ -136,7 +136,7 @@ frontend/
 | --- | --- |
 | `MeetingInput` | Drag-and-drop upload with progress. The **Paste a link** tab appears only when `/api/health` reports `links: true` |
 | `Workspace` | Picks the view for the meeting's status: progress steps, error card, or report + chat |
-| `MeetingReport` | Renders the analysis. Normalizes LLM items that may be strings or `{ task, owner, deadline }` objects. Copy-to-clipboard and full transcript |
+| `MeetingReport` | Renders the analysis. Normalizes LLM items that may be strings or `{ task, owner, deadline }` objects. Copy-to-clipboard, full transcript, and **Export PDF**, which prints a light, print-only layout (`.print-report`) through the browser's Save-as-PDF, so every script renders correctly |
 | `MeetingChat` | Suggested questions, free-text input, "thinking" indicator, error bubbles. Answers render as Markdown (bold, lists, tables) via `react-markdown`; raw HTML is never rendered |
 
 ---

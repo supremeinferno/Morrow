@@ -38,6 +38,7 @@ Morrow is an AI meeting assistant. Paste a meeting link or upload a recording, a
 | **Action items** | Tasks with owners and deadlines, but only when they were stated. |
 | **Open questions** | Unresolved questions that need follow-up. |
 | **Meeting chatbot** | A RAG chatbot that answers from the transcript, and says so when the answer isn't there. |
+| **Export** | Copy the report as text, or export a clean PDF (any language) with the full transcript. |
 | **Live progress** | Step-by-step status while the meeting is processed. Refreshing the page picks up where it left off. |
 
 Morrow is designed to **stay grounded**. It never invents names, deadlines or decisions that weren't in the conversation.
@@ -202,6 +203,6 @@ Full steps: [backend deployment](backend/README.md#deployment-docker--render) ·
 - [x] RAG chatbot over meeting transcripts
 - [x] Web app with link and file upload
 - [ ] Persistent meeting history (database)
-- [ ] Export reports as PDF
+- [x] Export reports as PDF
 - [ ] Speaker identification
 - [ ] Authentication for hosted deployments
